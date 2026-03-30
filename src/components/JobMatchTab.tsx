@@ -45,7 +45,7 @@ export default function JobMatchTab({
       abortRef.current = controller;
       lastSearchRef.current = { resumeText, profile };
 
-      setSearchState({ ...INITIAL_SEARCH_STATE, stage: 'checking' });
+      setSearchState({ ...INITIAL_SEARCH_STATE, stage: source === 'google_jobs' ? 'extracting' : 'checking' });
       setView('progress');
 
       try {
@@ -137,6 +137,7 @@ export default function JobMatchTab({
         <div className="w-full max-w-md">
           <JobSearchProgress
             state={searchState}
+            source={source}
             onCancel={handleCancel}
             onRetry={handleRetry}
             onBack={handleNewSearch}

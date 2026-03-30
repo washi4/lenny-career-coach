@@ -1,15 +1,22 @@
 'use client';
 
 import { useLocale } from '@/lib/i18n';
-import type { JobSearchState, JobSearchStage } from '@/types';
+import type { JobSearchState, JobSearchStage, JobSource } from '@/types';
 
 type ProgressStage = Exclude<JobSearchStage, 'idle' | 'error'>;
 
-const STAGES: Array<{ key: ProgressStage; labelKey: string }> = [
+const BOSS_STAGES: Array<{ key: ProgressStage; labelKey: string }> = [
   { key: 'checking', labelKey: 'job_match.stage_checking' },
   { key: 'extracting', labelKey: 'job_match.stage_extracting' },
   { key: 'searching', labelKey: 'job_match.stage_searching' },
   { key: 'fetching', labelKey: 'job_match.stage_fetching' },
+  { key: 'scoring', labelKey: 'job_match.stage_scoring' },
+  { key: 'done', labelKey: 'job_match.stage_scoring' },
+];
+
+const GOOGLE_STAGES: Array<{ key: ProgressStage; labelKey: string }> = [
+  { key: 'extracting', labelKey: 'job_match.stage_extracting' },
+  { key: 'searching', labelKey: 'job_match.stage_searching_google' },
   { key: 'scoring', labelKey: 'job_match.stage_scoring' },
   { key: 'done', labelKey: 'job_match.stage_scoring' },
 ];
@@ -32,16 +39,19 @@ function getStageText(
 
 export default function JobSearchProgress({
   state,
+  source = 'boss',
   onCancel,
   onRetry,
   onBack,
 }: {
   state: JobSearchState;
+  source?: JobSource;
   onCancel: () => void;
   onRetry?: () => void;
   onBack?: () => void;
 }) {
   const { t, locale } = useLocale();
+  const STAGES = source === 'google_jobs' ? GOOGLE_STAGES : BOSS_STAGES;
   const isError = state.stage === 'error';
   const activeIndex = isError ? -1 : STAGES.findIndex((stage) => stage.key === state.stage);
   const errorStageIndex = isError
