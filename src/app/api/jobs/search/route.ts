@@ -420,12 +420,17 @@ Rules:
 - Return the array sorted by score descending
 - Include ALL jobs in the output, even low-scoring ones`;
 
-async function scoreJobsWithLlm(
+type ScoreResult = { security_id: string; score: number; match_reasons: string[]; concerns: string[] };
+
+const SCORING_BATCH_SIZE = 5;
+const SCORING_TIMEOUT_MS = 180_000;
+
+async function scoreBatch(
   resumeText: string,
   profile: JobSearchRequest['profile'],
-  jobs: NormalizedJob[],
-): Promise<Array<{ security_id: string; score: number; match_reasons: string[]; concerns: string[] }>> {
-  const jobSummaries = jobs.map((j, i) => [
+  batch: NormalizedJob[],
+): Promise<ScoreResult[]> {
+  const jobSummaries = batch.map((j, i) => [
     `--- Job ${i + 1} [${j.security_id}] ---`,
     `Title: ${j.title}`,
     `Company: ${j.company} (${j.company_industry}, ${j.company_scale})`,
@@ -468,20 +473,35 @@ async function scoreJobsWithLlm(
     onPermissionRequest: () => ({ kind: 'approved' as const }),
   });
 
-  const response = await session.sendAndWait({ prompt }, 120_000);
-  await session.disconnect();
-
-  const content = response?.data.content ?? '';
-  const jsonMatch = content.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    return [];
-  }
-
   try {
-    return JSON.parse(jsonMatch[0]) as Array<{ security_id: string; score: number; match_reasons: string[]; concerns: string[] }>;
-  } catch {
+    const response = await session.sendAndWait({ prompt }, SCORING_TIMEOUT_MS);
+    const content = response?.data.content ?? '';
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+    return JSON.parse(jsonMatch[0]) as ScoreResult[];
+  } catch (e) {
+    console.warn('[scoreBatch] failed:', toErrorMessage(e));
     return [];
+  } finally {
+    await session.disconnect();
   }
+}
+
+async function scoreJobsWithLlm(
+  resumeText: string,
+  profile: JobSearchRequest['profile'],
+  jobs: NormalizedJob[],
+): Promise<ScoreResult[]> {
+  const batches: NormalizedJob[][] = [];
+  for (let i = 0; i < jobs.length; i += SCORING_BATCH_SIZE) {
+    batches.push(jobs.slice(i, i + SCORING_BATCH_SIZE));
+  }
+
+  const batchResults = await Promise.all(
+    batches.map((batch) => scoreBatch(resumeText, profile, batch)),
+  );
+
+  return batchResults.flat();
 }
 
 async function runBossPipeline(ctx: SseContext, body: JobSearchRequest): Promise<void> {
