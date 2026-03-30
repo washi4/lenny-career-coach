@@ -23,15 +23,16 @@ npm run dev          # http://localhost:3000
 
 - Node.js 18+, Python 3.8+
 - `gh` CLI authenticated (`gh auth login`) — the Copilot SDK uses `gh` OAuth tokens, NOT PATs
-- Python packages: `pip install chromadb sentence-transformers`
+- Python packages: `pip install -r requirements.txt`
 - ChromaDB index built (see "Vector DB" section below)
 
 ## Build & Run
 
 ```bash
-npm run dev           # Dev server (port 3000)
-npm run build         # Production build
-npm run lint          # ESLint
+npm run dev             # Dev server (port 3000)
+npm run build           # Production build
+npm run lint            # ESLint
+npm run search-server   # FastAPI search server (port 8001)
 ```
 
 ## Architecture
@@ -46,7 +47,7 @@ The LLM is a **conduit** for Lenny's data. All analysis, dimensions, frameworks,
 User message → POST /api/chat
   → Load SKILL.md for active tab (resume-reviewer | career-advisor | mock-interviewer)
   → CopilotClient.createSession() with skill as systemMessage
-  → Model calls search_knowledge_base tool → Python search.py → ChromaDB query
+  → Model calls search_knowledge_base tool → FastAPI server (port 8001) or subprocess fallback → ChromaDB query
   → Model generates response with [REF-XX] inline citations
   → SSE stream back to client
   → Client renders markdown + clickable REF links
@@ -87,12 +88,13 @@ lenny-career-coach/
 │   └── .chroma/                    # ChromaDB storage (gitignored, 609MB)
 ├── scripts/
 │   ├── build_index.py              # Build/rebuild ChromaDB index
-│   ├── search.py                   # Query ChromaDB (called by route.ts at runtime)
+│   ├── search_server.py            # FastAPI persistent search server (port 8001)
+│   ├── search.py                   # Query ChromaDB (CLI + subprocess fallback)
 │   └── config.py                   # Shared config loader
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx                # Main page — 3 tabs, split-panel layout
-│   │   ├── globals.css             # Warm beige theme, Tailwind v4 tokens
+│   │   ├── globals.css             # Dark professional theme, Tailwind v4 tokens
 │   │   ├── layout.tsx
 │   │   └── api/
 │   │       ├── chat/route.ts       # CopilotClient + search tool + SSE streaming
@@ -101,13 +103,13 @@ lenny-career-coach/
 │   ├── components/
 │   │   ├── ChatArea.tsx            # Message list + scroll management
 │   │   ├── ChatMessage.tsx         # Markdown rendering + REF links + suggestion buttons
-│   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content
+│   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content / inline images
 │   │   ├── InputArea.tsx           # Text input + PDF upload (all tabs)
 │   │   ├── TopicChips.tsx          # Empty-state topic suggestions
 │   │   ├── TabBar.tsx              # 3-tab navigation
-│   │   ├── Header.tsx
-│   │   └── FloatingNames.tsx
+│   │   └── Header.tsx              # App header + language switcher
 │   ├── lib/
+│   │   ├── i18n.ts                 # Lightweight i18n (EN/ZH) with React context
 │   │   ├── career-data.ts          # Tab config, topic definitions
 │   │   └── chat-client.ts          # SSE client — DO NOT MODIFY
 │   └── types/index.ts              # TabMode, Message, Reference, ChatState
@@ -173,12 +175,12 @@ See `.agents/skills/index-builder/SKILL.md` for full index management guide.
 - ALL analysis logic must come from Lenny's data via `search_knowledge_base`, never the model's own training data
 - Responses must cite sources with inline `[REF-XX: "Title" | source:FILENAME.md]`
 - `scripts/` stays at project root — `search.py` is called by the app at runtime, not just by the index-builder skill
-- UI: warm beige/orange aesthetic — see `globals.css` for theme tokens
-- Search timeout: 90s (cold start can be slow)
+- UI: dark professional theme with indigo accents — see `globals.css` for theme tokens
+- Search timeout: 90s (subprocess fallback; FastAPI server responds in ~100ms)
 
 ## Known Behaviors
 
-- ChromaDB search takes ~14s warm per query
+- ChromaDB search takes ~14s warm per query via subprocess; ~100ms via FastAPI server
 - Model may emit leading `\n\n` before content — trimmed by `renderContent()`
 - HMR Fast Refresh disrupts in-flight SSE streams — reload page after code edits before testing
 - `systemMessage: { mode: 'customize' }` is required — `mode: 'replace'` removes tool instructions
