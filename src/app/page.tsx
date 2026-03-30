@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { TabMode, Message, Reference } from '@/types';
+import type { TabMode, Message, Reference, JobResult } from '@/types';
 import Header from '@/components/Header';
 import TabBar from '@/components/TabBar';
 import ChatArea from '@/components/ChatArea';
 import TopicChips from '@/components/TopicChips';
 import InputArea from '@/components/InputArea';
 import ReferencePanel from '@/components/ReferencePanel';
+import JobMatchTab from '@/components/JobMatchTab';
+import JobDetailPanel from '@/components/JobDetailPanel';
 import { sendChatMessage, uploadPdf } from '@/lib/chat-client';
 import { useLocale } from '@/lib/i18n';
 
@@ -21,9 +23,11 @@ export default function Home() {
     resume_review: [],
     career_advice: [],
     mock_interview: [],
+    job_match: [],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRef, setSelectedRef] = useState<Reference | null>(null);
+  const [selectedJob, setSelectedJob] = useState<JobResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { t } = useLocale();
 
@@ -215,33 +219,50 @@ export default function Home() {
       abortRef.current?.abort();
       setIsLoading(false);
       setActiveTab(tab);
+      setSelectedJob(null);
     },
     [activeTab],
   );
 
+  const showRightPanel = selectedRef || selectedJob;
+
   return (
     <div className="flex h-screen w-full bg-bg-primary">
-      <div className={`flex flex-col transition-all duration-300 ${selectedRef ? 'w-1/2' : 'w-full max-w-3xl mx-auto'}`}>
+      <div className={`flex flex-col h-screen transition-all duration-300 ${showRightPanel ? 'w-1/2' : 'w-full max-w-3xl mx-auto'}`}>
         <Header />
         <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          <ChatArea messages={messages} isLoading={isLoading} onRefClick={handleRefClick} onSuggestionClick={handleSend} />
-          <TopicChips
-            activeTab={activeTab}
-            onChipClick={handleChipClick}
-            onFileUpload={handleFileUpload}
-            hasMessages={messages.length > 0}
-          />
-        </div>
-        <InputArea
-          onSend={handleSend}
-          onFileUpload={handleFileUpload}
-          disabled={isLoading}
-          activeTab={activeTab}
-        />
+        {activeTab === 'job_match' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <JobMatchTab onJobSelect={setSelectedJob} />
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+              <ChatArea messages={messages} isLoading={isLoading} onRefClick={handleRefClick} onSuggestionClick={handleSend} />
+              <TopicChips
+                activeTab={activeTab}
+                onChipClick={handleChipClick}
+                onFileUpload={handleFileUpload}
+                hasMessages={messages.length > 0}
+              />
+            </div>
+            <InputArea
+              onSend={handleSend}
+              onFileUpload={handleFileUpload}
+              disabled={isLoading}
+              activeTab={activeTab}
+            />
+          </>
+        )}
       </div>
 
-      {selectedRef && (
+      {selectedJob && (
+        <div className="w-1/2 h-screen">
+          <JobDetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+        </div>
+      )}
+
+      {!selectedJob && selectedRef && (
         <div className="w-1/2 h-screen">
           <ReferencePanel reference={selectedRef} onClose={handleCloseRef} />
         </div>

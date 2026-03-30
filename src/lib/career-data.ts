@@ -137,3 +137,46 @@ export const INTERVIEW_TYPES = {
 
 export type CareerTopicKey = keyof typeof CAREER_TOPICS;
 export type InterviewTypeKey = keyof typeof INTERVIEW_TYPES;
+
+export const JOB_MATCH_CONFIG = {
+  cities: [
+    '北京', '上海', '广州', '深圳', '杭州', '成都',
+    '南京', '武汉', '西安', '苏州', '长沙', '重庆',
+    '天津', '郑州', '青岛', '大连', '厦门', '珠海',
+  ],
+  international_cities: [
+    'San Francisco, CA', 'New York, NY', 'Seattle, WA', 'Los Angeles, CA',
+    'Austin, TX', 'Boston, MA', 'Chicago, IL', 'Denver, CO',
+    'London, UK', 'Toronto, Canada', 'Singapore', 'Berlin, Germany',
+    'Sydney, Australia', 'Tokyo, Japan', 'Amsterdam, Netherlands', 'Remote',
+  ],
+  /** Maps short display names to SerpApi-compatible location strings */
+  serpapi_location_map: {
+    'San Francisco, CA': 'San Francisco, California, United States',
+    'New York, NY': 'New York, New York, United States',
+    'Seattle, WA': 'Seattle, Washington, United States',
+    'Los Angeles, CA': 'Los Angeles, California, United States',
+    'Austin, TX': 'Austin, Texas, United States',
+    'Boston, MA': 'Boston, Massachusetts, United States',
+    'Chicago, IL': 'Chicago, Illinois, United States',
+    'Denver, CO': 'Denver, Colorado, United States',
+    'London, UK': 'London, England, United Kingdom',
+    'Toronto, Canada': 'Toronto, Ontario, Canada',
+    'Singapore': 'Singapore',
+    'Berlin, Germany': 'Berlin, Germany',
+    'Sydney, Australia': 'Sydney, New South Wales, Australia',
+    'Tokyo, Japan': 'Tokyo, Japan',
+    'Amsterdam, Netherlands': 'Amsterdam, Netherlands',
+    'Remote': 'United States',
+  } as Record<string, string>,
+  salary_ranges: [
+    '3K以下', '3-5K', '5-10K', '10-15K', '15-20K',
+    '20-30K', '30-50K', '50K以上',
+  ],
+  experience_levels: [
+    '应届', '1年以内', '1-3年', '3-5年', '5-10年', '10年以上',
+  ],
+  education_levels: [
+    '大专', '本科', '硕士', '博士',
+  ],
+} as const;

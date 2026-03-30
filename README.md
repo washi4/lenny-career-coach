@@ -4,7 +4,7 @@ A RAG-powered career coaching app built on Lenny Rachitsky's podcast and newslet
 
 [Lenny Rachitsky](https://www.lennysnewsletter.com/) is a former product lead at Airbnb and the author of the #1 business newsletter on Substack. His podcast and newsletter cover product management, growth, career development, and working with executives — featuring guests like Sheryl Sandberg, Brian Chesky, and Julie Zhuo. This app turns that knowledge base into an interactive career coach.
 
-Three coaching modes — **Resume Review**, **Career Advice**, and **Mock Interview** — all grounded in 314 podcast transcripts and 349 newsletter articles. Every response cites its sources with clickable references that open the original content (YouTube embeds for podcasts, rendered articles for newsletters).
+Three coaching modes — **Resume Review**, **Career Advice**, and **Mock Interview** — plus an experimental **Job Match** tab. All grounded in 314 podcast transcripts and 349 newsletter articles. Every response cites its sources with clickable references that open the original content (YouTube embeds for podcasts, rendered articles for newsletters).
 
 Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copilot SDK for LLM inference.
 
@@ -19,6 +19,9 @@ Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copi
 - **Fast vector search** — FastAPI persistent server delivers ~100ms queries (vs ~14s cold subprocess)
 - **Bilingual UI** — English and Chinese with a one-click language switcher
 - **Hot-swappable model** — Change the LLM model in config, takes effect on the next request
+- **Job Match** (experimental) — Upload your resume and get ranked job matches scored by the LLM against your profile and preferences. Two data sources:
+  - **Google Jobs** (via [SerpApi](https://serpapi.com/)) — International job search. Requires a SerpApi API key
+  - **Boss直聘** (via [OpenCLI](https://github.com/jackwener/opencli)) — Chinese job market. Requires OpenCLI and an active Boss直聘 session in Chrome
 
 ## Prerequisites
 
@@ -26,6 +29,11 @@ Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copi
 - **Python 3.8+**
 - **GitHub account with a Copilot subscription** — The app uses the [GitHub Copilot SDK](https://github.com/nicolo-ribaudo/github-copilot-sdk) for LLM access. This requires an active [GitHub Copilot](https://github.com/features/copilot) subscription (paid).
 - **`gh` CLI** — Install from [cli.github.com](https://cli.github.com/), then run `gh auth login`
+- **OpenCLI** (optional, for Job Match / Boss直聘 only) — `npm install -g @jackwener/opencli`. Also requires Chrome with an active [Boss直聘](https://www.zhipin.com) login session
+- **SerpApi key** (optional, for Job Match / Google Jobs only) — Sign up at [serpapi.com](https://serpapi.com/) and add to `.env.local`:
+  ```
+  SERPAPI_API_KEY=your_key_here
+  ```
 
 ## Quick Start
 
@@ -114,17 +122,21 @@ Edit `knowledge-coach-config.json`:
 lenny-career-coach/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                # Main page — 3 tabs, split-panel layout
+│   │   ├── page.tsx                # Main page — 4 tabs, split-panel layout
 │   │   ├── globals.css             # Theme tokens (Tailwind v4)
 │   │   └── api/
 │   │       ├── chat/route.ts       # LLM chat + search tool + SSE streaming
 │   │       ├── parse-pdf/route.ts  # PDF text extraction
-│   │       └── reference/[file]/route.ts  # Serve source content
+│   │       ├── reference/[file]/route.ts  # Serve source content
+│   │       └── jobs/
+│   │           ├── check/route.ts  # Prerequisite check (OpenCLI + Boss直聘)
+│   │           └── search/route.ts # Job search pipeline (Boss直聘 + Google Jobs + LLM + SSE)
 │   ├── components/                 # React components
 │   ├── lib/
 │   │   ├── i18n.ts                # Internationalization (EN/ZH)
 │   │   ├── chat-client.ts         # SSE streaming client
-│   │   └── career-data.ts         # Tab config, topic definitions
+│   │   ├── career-data.ts         # Tab config, topic definitions
+│   │   └── jobs-client.ts         # SSE client for job search pipeline
 │   └── types/index.ts
 ├── scripts/
 │   ├── search_server.py           # FastAPI persistent search server
@@ -160,6 +172,12 @@ First run downloads ~2GB of PyTorch + model weights. This is expected. Subsequen
 **"Cannot find module" errors**
 Run `npm install` to install Node dependencies.
 
+**Job Match tab shows "Setup Required"**
+Install OpenCLI: `npm install -g @jackwener/opencli`. Then open Chrome, go to zhipin.com, and log in. The tab's setup check verifies both prerequisites. Note: this only applies to the Boss直聘 source — Google Jobs requires a SerpApi key in `.env.local` instead.
+
+**Google Jobs returns no results**
+Check that `SERPAPI_API_KEY` is set in `.env.local` and the key is valid. You can test directly: `curl "https://serpapi.com/search.json?engine=google_jobs&q=product+manager&api_key=YOUR_KEY"`. SerpApi requires full location format (e.g., "San Francisco, California, United States" not "San Francisco, CA").
+
 
 ## Data Source & Attribution
 
@@ -177,4 +195,5 @@ The knowledge base content is sourced from [Lenny Rachitsky's](https://www.lenny
 - [joeseesun/lennys-podcast-newsletter](https://github.com/joeseesun/lennys-podcast-newsletter) — for the curated data collection
 - [GitHub Copilot SDK](https://github.com/nicolo-ribaudo/github-copilot-sdk) — for LLM integration
 - [ChromaDB](https://www.trychroma.com/) — for vector search
+- [SerpApi](https://serpapi.com/) — for Google Jobs search integration
 - [YouMind Lenny Career Coach](https://youmind.com/zh-CN/landing/lenny-career-coach) — for the original inspiration

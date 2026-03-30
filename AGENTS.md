@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Project Overview
 
-A RAG-powered career coaching web app built on **Lenny Rachitsky's** content (314 podcasts + 349 newsletters). Three coaching modes — resume review, career advice, mock interview — all grounded in Lenny's knowledge base, not generic AI advice.
+A RAG-powered career coaching web app built on **Lenny Rachitsky's** content (314 podcasts + 349 newsletters). Three coaching modes — resume review, career advice, mock interview — plus an experimental Job Match tab. All grounded in Lenny's knowledge base, not generic AI advice.
 
 **Stack**: Next.js 16 + React 19 + Tailwind v4 + `@github/copilot-sdk` + ChromaDB + Python
 
@@ -52,6 +52,14 @@ User message → POST /api/chat
   → SSE stream back to client
   → Client renders markdown + clickable REF links
   → Click REF → ReferencePanel opens (YouTube embed for podcasts, markdown for newsletters)
+
+Job Match tab → POST /api/jobs/search
+  → Load job-matcher SKILL.md as systemMessage
+  → CopilotClient session with search_jobs + fetch_job_detail tools
+  → Tools call OpenCLI (opencli boss search/detail)
+  → LLM scores and ranks results
+  → SSE stream progress + results back to client
+  → Client renders wizard → progress → results → detail panel
 ```
 
 ### Config: `knowledge-coach-config.json`
@@ -81,6 +89,7 @@ lenny-career-coach/
 │   ├── resume-reviewer/SKILL.md    # Resume review coaching skill
 │   ├── career-advisor/SKILL.md     # Career advice coaching skill
 │   ├── mock-interviewer/SKILL.md   # Mock interview coaching skill
+│   ├── job-matcher/SKILL.md        # Job match scoring skill (OpenCLI + Boss直聘)
 │   └── index-builder/SKILL.md      # ChromaDB index management skill
 ├── data/
 │   ├── podcasts/                   # 314 podcast transcripts (.md)
@@ -93,26 +102,36 @@ lenny-career-coach/
 │   └── config.py                   # Shared config loader
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                # Main page — 3 tabs, split-panel layout
+│   │   ├── page.tsx                # Main page — 4 tabs, split-panel layout
 │   │   ├── globals.css             # Dark professional theme, Tailwind v4 tokens
 │   │   ├── layout.tsx
 │   │   └── api/
 │   │       ├── chat/route.ts       # CopilotClient + search tool + SSE streaming
 │   │       ├── parse-pdf/route.ts  # PDF parsing (liteparse + strings fallback)
-│   │       └── reference/[file]/route.ts  # Serve source files from data/
+│   │       ├── reference/[file]/route.ts  # Serve source files from data/
+│   │       └── jobs/
+│   │           ├── check/route.ts  # Prerequisite check (OpenCLI + Boss直聘)
+│   │           └── search/route.ts # Job search pipeline (OpenCLI + LLM + SSE)
 │   ├── components/
 │   │   ├── ChatArea.tsx            # Message list + scroll management
 │   │   ├── ChatMessage.tsx         # Markdown rendering + REF links + suggestion buttons
 │   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content / inline images
 │   │   ├── InputArea.tsx           # Text input + PDF upload (all tabs)
 │   │   ├── TopicChips.tsx          # Empty-state topic suggestions
-│   │   ├── TabBar.tsx              # 3-tab navigation
-│   │   └── Header.tsx              # App header + language switcher
+│   │   ├── TabBar.tsx              # 4-tab navigation
+│   │   ├── Header.tsx              # App header + language switcher
+│   │   ├── JobMatchTab.tsx         # Job match tab wrapper (wizard/progress/results states)
+│   │   ├── JobMatchWizard.tsx      # Prerequisite check + PDF upload + profile form
+│   │   ├── JobSearchProgress.tsx   # Search progress with stage indicators
+│   │   ├── JobCard.tsx             # Individual job result card
+│   │   ├── JobResults.tsx          # Job results list with stats banner
+│   │   └── JobDetailPanel.tsx      # Full job detail in right panel
 │   ├── lib/
 │   │   ├── i18n.ts                 # Lightweight i18n (EN/ZH) with React context
 │   │   ├── career-data.ts          # Tab config, topic definitions
-│   │   └── chat-client.ts          # SSE client — DO NOT MODIFY
-│   └── types/index.ts              # TabMode, Message, Reference, ChatState
+│   │   ├── chat-client.ts          # SSE client — DO NOT MODIFY
+│   │   └── jobs-client.ts          # SSE client for job search pipeline
+│   └── types/index.ts              # TabMode, Message, Reference, ChatState, JobProfile, JobResult
 └── knowledge-coach-config.json     # App + vector DB config
 ```
 
@@ -184,3 +203,5 @@ See `.agents/skills/index-builder/SKILL.md` for full index management guide.
 - Model may emit leading `\n\n` before content — trimmed by `renderContent()`
 - HMR Fast Refresh disrupts in-flight SSE streams — reload page after code edits before testing
 - `systemMessage: { mode: 'customize' }` is required — `mode: 'replace'` removes tool instructions
+- Job Match tab requires OpenCLI (`npm install -g @jackwener/opencli`) and an active Boss直聘 session in Chrome
+- The prerequisite check API (`/api/jobs/check`) verifies OpenCLI installation and Boss直聘 login status
