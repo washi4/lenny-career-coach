@@ -1,14 +1,20 @@
 {
-  "name": "knowledge-coach-app",
+  "name": "lenny-career-coach",
   "version": "0.1.0",
-  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "search-server": "python3 scripts/search_server.py",
+    "search-server:bg": "python3 scripts/search_server.py &"
   },
   "dependencies": {
+    "@github/copilot-sdk": "^0.2.0",
+    "lucide-react": "^1.7.0",
     "next": "16.2.1",
     "react": "19.2.4",
     "react-dom": "19.2.4"

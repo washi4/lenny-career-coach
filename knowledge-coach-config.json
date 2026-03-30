@@ -1,0 +1,8 @@
+{
+  "name": "Lenny Career Coach",
+  "model": "claude-sonnet-4.6",
+  "knowledge_base_dir": "./data",
+  "chroma_dir": "./data/.chroma",
+  "embedding_model": "all-MiniLM-L6-v2",
+  "top_k": 5
+}

@@ -1,65 +1,251 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useRef, useCallback } from 'react';
+import type { TabMode, Message, Reference } from '@/types';
+import Header from '@/components/Header';
+import TabBar from '@/components/TabBar';
+import ChatArea from '@/components/ChatArea';
+import TopicChips from '@/components/TopicChips';
+import InputArea from '@/components/InputArea';
+import ReferencePanel from '@/components/ReferencePanel';
+import { sendChatMessage, uploadPdf } from '@/lib/chat-client';
+import { useLocale } from '@/lib/i18n';
+
+function createId() {
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabMode>('career_advice');
+  const [chatHistories, setChatHistories] = useState<Record<TabMode, Message[]>>({
+    resume_review: [],
+    career_advice: [],
+    mock_interview: [],
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedRef, setSelectedRef] = useState<Reference | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const { t } = useLocale();
+
+  const messages = chatHistories[activeTab];
+
+  const handleRefClick = useCallback((ref: Reference) => {
+    setSelectedRef(ref);
+  }, []);
+
+  const handleCloseRef = useCallback(() => {
+    setSelectedRef(null);
+  }, []);
+
+  const handleSend = useCallback(
+    async (text: string) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const userMsg: Message = {
+        id: createId(),
+        role: 'user',
+        content: text,
+        timestamp: Date.now(),
+      };
+      const assistantId = createId();
+      const assistantMsg: Message = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+      };
+
+      setChatHistories((prev) => ({
+        ...prev,
+        [activeTab]: [...prev[activeTab], userMsg, assistantMsg],
+      }));
+      setIsLoading(true);
+
+      let subtopic: string | undefined;
+      const chipMatch = text.match(/^[^\s]+\s(.+)$/);
+      if (chipMatch) {
+        subtopic = chipMatch[1];
+      }
+
+      const allMessages = [...chatHistories[activeTab], userMsg];
+
+      try {
+        await sendChatMessage(
+          allMessages,
+          activeTab,
+          subtopic,
+          (fullContent) => {
+            setChatHistories((prev) => ({
+              ...prev,
+              [activeTab]: prev[activeTab].map((m) =>
+                m.id === assistantId ? { ...m, content: fullContent } : m,
+              ),
+            }));
+          },
+          controller.signal,
+        );
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setChatHistories((prev) => ({
+          ...prev,
+          [activeTab]: prev[activeTab].map((m) =>
+            m.id === assistantId
+              ? { ...m, content: t('chat.error') }
+              : m,
+          ),
+        }));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeTab, chatHistories, t],
+  );
+
+  const handleChipClick = useCallback(
+    (text: string) => {
+      handleSend(text);
+    },
+    [handleSend],
+  );
+
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        const errorMsg: Message = {
+          id: createId(),
+          role: 'assistant',
+          content: t('chat.file_too_large', { size: (file.size / 1024 / 1024).toFixed(1) }),
+          timestamp: Date.now(),
+        };
+        setChatHistories((prev) => ({
+          ...prev,
+          [activeTab]: [...prev[activeTab], errorMsg],
+        }));
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const extractedText = await uploadPdf(file);
+        const displayName = file.name;
+        const userMsg: Message = {
+          id: createId(),
+          role: 'user',
+          content: `📎 ${displayName}`,
+          timestamp: Date.now(),
+        };
+        const assistantId = createId();
+        const assistantMsg: Message = {
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          timestamp: Date.now(),
+        };
+
+        setChatHistories((prev) => ({
+          ...prev,
+          [activeTab]: [...prev[activeTab], userMsg, assistantMsg],
+        }));
+
+        const prompt = activeTab === 'resume_review'
+          ? `${t('chat.review_prompt')}${extractedText}`
+          : `${t('chat.reference_prompt')}${extractedText}`;
+
+        const allMessages = [...chatHistories[activeTab], { ...userMsg, content: prompt }];
+
+        try {
+          await sendChatMessage(
+            allMessages,
+            activeTab,
+            undefined,
+            (fullContent) => {
+              setChatHistories((prev) => ({
+                ...prev,
+                [activeTab]: prev[activeTab].map((m) =>
+                  m.id === assistantId ? { ...m, content: fullContent } : m,
+                ),
+              }));
+            },
+            new AbortController().signal,
+          );
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          setChatHistories((prev) => ({
+            ...prev,
+            [activeTab]: prev[activeTab].map((m) =>
+              m.id === assistantId
+              ? { ...m, content: t('chat.error') }
+                : m,
+            ),
+          }));
+        } finally {
+          setIsLoading(false);
+        }
+      } catch (err) {
+        let detail = 'Unknown error';
+        if (err instanceof Error) {
+          try {
+            const parsed = JSON.parse(err.message);
+            detail = parsed.error || err.message;
+          } catch {
+            detail = err.message;
+          }
+        }
+        const errorMsg: Message = {
+          id: createId(),
+          role: 'assistant',
+          content: t('chat.pdf_error', { detail }),
+          timestamp: Date.now(),
+        };
+        setChatHistories((prev) => ({
+          ...prev,
+          [activeTab]: [...prev[activeTab], errorMsg],
+        }));
+        setIsLoading(false);
+      }
+    },
+    [activeTab, chatHistories, t],
+  );
+
+  const handleTabChange = useCallback(
+    (tab: TabMode) => {
+      if (tab === activeTab) return;
+      abortRef.current?.abort();
+      setIsLoading(false);
+      setActiveTab(tab);
+    },
+    [activeTab],
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex h-screen w-full bg-bg-primary">
+      <div className={`flex flex-col transition-all duration-300 ${selectedRef ? 'w-1/2' : 'w-full max-w-3xl mx-auto'}`}>
+        <Header />
+        <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <ChatArea messages={messages} isLoading={isLoading} onRefClick={handleRefClick} onSuggestionClick={handleSend} />
+          <TopicChips
+            activeTab={activeTab}
+            onChipClick={handleChipClick}
+            onFileUpload={handleFileUpload}
+            hasMessages={messages.length > 0}
+          />
+        </div>
+        <InputArea
+          onSend={handleSend}
+          onFileUpload={handleFileUpload}
+          disabled={isLoading}
+          activeTab={activeTab}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      </div>
+
+      {selectedRef && (
+        <div className="w-1/2 h-screen">
+          <ReferencePanel reference={selectedRef} onClose={handleCloseRef} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
     </div>
   );
 }

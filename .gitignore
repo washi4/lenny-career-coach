@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ChromaDB vector database (609MB, can be rebuilt with: python3 scripts/build_index.py --rebuild)
+data/.chroma/
+
+# Python
+__pycache__/
+*.pyc
+.ruff_cache/

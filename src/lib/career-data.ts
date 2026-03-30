@@ -1,0 +1,139 @@
+export const RESUME_REVIEW_CRITERIA = {
+  impact_metrics: {
+    name: '量化成果 (Impact Metrics)',
+    description: '简历是否用具体数字展示成果？增长了X%、节省了Y万、服务了Z用户',
+  },
+  product_thinking: {
+    name: '产品思维 (Product Thinking)',
+    description: '是否展示了用户洞察→问题定义→方案设计→验证迭代 的完整思路',
+  },
+  leadership_signals: {
+    name: '领导力信号 (Leadership Signals)',
+    description: '是否展示了跨团队协作、影响力、决策能力',
+  },
+  storytelling: {
+    name: '叙事能力 (Storytelling)',
+    description: '简历是否讲了一个连贯的职业故事？不是功能列表而是成长轨迹',
+  },
+  role_match: {
+    name: '角色匹配 (Role Match)',
+    description: '经验是否匹配目标职位级别？IC vs 管理者、B2B vs B2C、0-1 vs 规模化',
+  },
+} as const;
+
+export const CAREER_TOPICS = {
+  transition: {
+    key: 'transition',
+    name: '职业转型和转变',
+    emoji: '🎯',
+    description: '转行做PM、从IC转管理、从大公司到创业、从创业到大公司',
+  },
+  negotiation: {
+    key: 'negotiation',
+    name: '薪资谈判策略',
+    emoji: '📈',
+    description: '如何谈薪资、评估offer、理解总包结构',
+  },
+  personal_brand: {
+    key: 'personal_brand',
+    name: '打造个人品牌',
+    emoji: '💡',
+    description: '建立影响力、写作、演讲、社交媒体',
+  },
+  networking: {
+    key: 'networking',
+    name: '社交网络和导师指导',
+    emoji: '🤝',
+    description: '找到导师、建立人脉、求助技巧',
+  },
+  promotion: {
+    key: 'promotion',
+    name: '晋升和职业成长',
+    emoji: '🚀',
+    description: '如何晋升、职级体系、成为高级PM',
+  },
+  skills: {
+    key: 'skills',
+    name: '核心技能发展',
+    emoji: '🛠️',
+    description: 'PM需要什么技能、怎么学习提升',
+  },
+  ai_impact: {
+    key: 'ai_impact',
+    name: 'AI 对职业的影响',
+    emoji: '🤖',
+    description: 'AI会取代PM吗？如何利用AI提升效率、未来PM的技能',
+  },
+  burnout: {
+    key: 'burnout',
+    name: '倦怠管理和工作生活平衡',
+    emoji: '🧘',
+    description: '应对倦怠、时间管理、心理健康',
+  },
+} as const;
+
+export const INTERVIEW_TYPES = {
+  product_sense: {
+    key: 'product_sense',
+    name: '产品感觉面试 (Product Sense)',
+    emoji: '🎨',
+    description: '设计一个产品、改进现有产品、分析用户需求',
+    sampleQuestions: [
+      'Design a product for elderly people to stay connected with family',
+      'How would you improve Instagram for creators?',
+      'Design a feature to help remote teams build culture',
+      'Your PM dashboard shows DAU dropped 20% this week. Walk me through your approach.',
+    ],
+  },
+  analytical: {
+    key: 'analytical',
+    name: '数据分析面试 (Analytical)',
+    emoji: '📊',
+    description: '定义指标、分析数据、设计实验',
+    sampleQuestions: [
+      'How would you measure the success of Instagram Stories?',
+      'If Uber ride completion rate dropped 5%, how would you investigate?',
+      'Define the north star metric for Spotify\'s podcast business',
+      'Design an A/B test for a new checkout flow',
+    ],
+  },
+  behavioral: {
+    key: 'behavioral',
+    name: '行为面试 (Behavioral)',
+    emoji: '💬',
+    description: '领导力、冲突处理、团队协作经历',
+    sampleQuestions: [
+      'Tell me about a time you had to push back on a stakeholder',
+      'Describe a situation where you had to make a decision with incomplete data',
+      'Tell me about a product you launched that failed. What did you learn?',
+      'How do you handle disagreements with engineering leads?',
+    ],
+  },
+  strategy: {
+    key: 'strategy',
+    name: '战略面试 (Strategy/Market)',
+    emoji: '🎯',
+    description: '市场分析、竞争策略、商业模式',
+    sampleQuestions: [
+      'Should Spotify enter the audiobook market? How?',
+      'How would you build a strategy for Notion to compete with Google Docs?',
+      'A fintech startup asks you to define their GTM strategy for SMBs. Walk me through it.',
+      'How would you prioritize international expansion for a B2B SaaS product?',
+    ],
+  },
+  execution: {
+    key: 'execution',
+    name: '执行面试 (Execution)',
+    emoji: '⚡',
+    description: '项目管理、优先级排序、跨团队协调',
+    sampleQuestions: [
+      'You have 5 feature requests from 5 different teams. How do you prioritize?',
+      'Your engineering team says the project will take 3x longer than expected. What do you do?',
+      'How would you create a 6-month roadmap for a new product line?',
+      'Walk me through how you\'d handle launching a feature across 10 countries simultaneously.',
+    ],
+  },
+} as const;
+
+export type CareerTopicKey = keyof typeof CAREER_TOPICS;
+export type InterviewTypeKey = keyof typeof INTERVIEW_TYPES;
