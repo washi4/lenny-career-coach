@@ -21,7 +21,12 @@ Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copi
 - **Hot-swappable model** — Change the LLM model in config, takes effect on the next request
 - **Job Match** (experimental) — Upload your resume and get ranked job matches scored by the LLM against your profile and preferences. Two data sources:
   - **Google Jobs** (via [SerpApi](https://serpapi.com/)) — International job search. Requires a SerpApi API key
-  - **Boss直聘** (via [OpenCLI](https://github.com/jackwener/opencli)) — Chinese job market. Requires OpenCLI and an active Boss直聘 session in Chrome
+  - **Boss直聘** (via [OpenCLI](https://github.com/jackwener/opencli)) — Chinese job market. Requires OpenCLI and an active Boss直聘 session in Chrome. ⚠️ May be blocked by IP restrictions — a warning is displayed in the UI
+- **Lenny integration for Job Match** — Every job result connects back to Lenny's knowledge base:
+  - **Ask Lenny** — Per-job streaming advice with citations from relevant podcast episodes and newsletter articles
+  - **Lenny's Take** — Overall analysis card across all search results
+  - **Cross-tab navigation** — Jump from any job result directly into Career Advice or Mock Interview with full job context (JD, profile, resume) pre-filled
+- **Persistent Job Match state** — Switching between tabs preserves your search results; no need to re-search when coming back
 
 ## Prerequisites
 
@@ -94,6 +99,24 @@ User → Next.js API (/api/chat) → Copilot SDK → LLM
 
 The search has a **dual-path** strategy: it tries the FastAPI server first (~100ms warm), and falls back to spawning a Python subprocess (~14s) if the server is unavailable. Both paths query the same ChromaDB index.
 
+### Job Match + Lenny Advice Flow
+
+```
+User fills profile → POST /api/jobs/search
+  → OpenCLI (Boss直聘) or SerpApi (Google Jobs) fetches listings
+  → LLM scores each job against resume + profile
+  → SSE stream: progress stages → ranked results
+
+User clicks "Ask Lenny" on a job → POST /api/jobs/lenny-advice
+  → search_knowledge_base (ChromaDB) for relevant Lenny content
+  → LLM generates advice with [REF-XX] citations
+  → SSE stream back to job card
+
+User clicks "Career Advice" / "Mock Interview" on a job
+  → Switches tab with full context (JD + profile + resume) pre-filled
+  → New chat session starts with job-specific context
+```
+
 ## Configuration
 
 Edit `knowledge-coach-config.json`:
@@ -129,14 +152,32 @@ lenny-career-coach/
 │   │       ├── parse-pdf/route.ts  # PDF text extraction
 │   │       ├── reference/[file]/route.ts  # Serve source content
 │   │       └── jobs/
-│   │           ├── check/route.ts  # Prerequisite check (OpenCLI + Boss直聘)
-│   │           └── search/route.ts # Job search pipeline (Boss直聘 + Google Jobs + LLM + SSE)
-│   ├── components/                 # React components
+│   │           ├── check/route.ts          # Prerequisite check (OpenCLI + Boss直聘)
+│   │           ├── extract-profile/route.ts # Auto-extract profile from resume
+│   │           ├── lenny-advice/route.ts   # Per-job Lenny advice (RAG + SSE)
+│   │           └── search/route.ts         # Job search pipeline (Boss直聘 + Google Jobs + LLM + SSE)
+│   ├── components/
+│   │   ├── ChatArea.tsx            # Message list + scroll management
+│   │   ├── ChatMessage.tsx         # Markdown rendering + REF links + suggestion buttons
+│   │   ├── Header.tsx              # App header + language switcher
+│   │   ├── InputArea.tsx           # Text input + PDF upload (all tabs)
+│   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content
+│   │   ├── TabBar.tsx              # 4-tab navigation
+│   │   ├── TopicChips.tsx          # Empty-state topic suggestions
+│   │   ├── JobMatchTab.tsx         # Job match tab wrapper (wizard/progress/results states)
+│   │   ├── JobMatchWizard.tsx      # Source selection + PDF upload + profile form
+│   │   ├── JobSearchProgress.tsx   # Search progress with stage indicators
+│   │   ├── JobResults.tsx          # Job results list + Lenny's Take card
+│   │   ├── JobCard.tsx             # Individual job card with Ask Lenny button
+│   │   └── JobDetailPanel.tsx      # Full job detail + Ask Lenny / Career Advice / Mock Interview
 │   ├── lib/
-│   │   ├── i18n.ts                # Internationalization (EN/ZH)
-│   │   ├── chat-client.ts         # SSE streaming client
-│   │   ├── career-data.ts         # Tab config, topic definitions
-│   │   └── jobs-client.ts         # SSE client for job search pipeline
+│   │   ├── i18n.ts                 # Internationalization (EN/ZH)
+│   │   ├── chat-client.ts          # SSE streaming client (DO NOT MODIFY)
+│   │   ├── career-data.ts          # Tab config, topic definitions, city/salary presets
+│   │   ├── jobs-client.ts          # SSE client for job search pipeline
+│   │   ├── knowledge-search.ts     # Shared ChromaDB search functions (used by chat + lenny-advice)
+│   │   ├── lenny-advice-client.ts  # SSE client for per-job Lenny advice
+│   │   └── markdown-renderer.tsx   # Shared markdown renderer (used by ChatMessage + JobCard)
 │   └── types/index.ts
 ├── scripts/
 │   ├── search_server.py           # FastAPI persistent search server
@@ -172,8 +213,8 @@ First run downloads ~2GB of PyTorch + model weights. This is expected. Subsequen
 **"Cannot find module" errors**
 Run `npm install` to install Node dependencies.
 
-**Job Match tab shows "Setup Required"**
-Install OpenCLI: `npm install -g @jackwener/opencli`. Then open Chrome, go to zhipin.com, and log in. The tab's setup check verifies both prerequisites. Note: this only applies to the Boss直聘 source — Google Jobs requires a SerpApi key in `.env.local` instead.
+**Job Match tab shows "Setup Required" when searching with Boss直聘**
+The prerequisite check runs when you click "Find Jobs" with the Boss直聘 source selected. Install OpenCLI: `npm install -g @jackwener/opencli`. Then open Chrome, go to zhipin.com, and log in. If all checks pass, the search will proceed automatically. Note: Boss直聘 may block requests due to IP restrictions — if searches consistently fail, switch to Google Jobs.
 
 **Google Jobs returns no results**
 Check that `SERPAPI_API_KEY` is set in `.env.local` and the key is valid. You can test directly: `curl "https://serpapi.com/search.json?engine=google_jobs&q=product+manager&api_key=YOUR_KEY"`. SerpApi requires full location format (e.g., "San Francisco, California, United States" not "San Francisco, CA").

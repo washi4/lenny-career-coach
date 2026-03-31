@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { TabMode, Message, Reference, JobResult } from '@/types';
+import type { TabMode, Message, Reference, JobResult, JobProfile, JobSearchState, JobSource, JobMatchView } from '@/types';
+import { INITIAL_SEARCH_STATE } from '@/types';
 import Header from '@/components/Header';
 import TabBar from '@/components/TabBar';
 import ChatArea from '@/components/ChatArea';
@@ -28,6 +29,18 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRef, setSelectedRef] = useState<Reference | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobResult | null>(null);
+  const [jobResumeText, setJobResumeText] = useState('');
+  const [jobProfile, setJobProfile] = useState<Partial<JobProfile>>({
+    target_roles: [],
+    skills: [],
+    dealbreakers: [],
+    preferred_cities: [],
+  });
+  const [jobMatchView, setJobMatchView] = useState<JobMatchView>('wizard');
+  const [jobSearchState, setJobSearchState] = useState<JobSearchState>(INITIAL_SEARCH_STATE);
+  const [jobFileName, setJobFileName] = useState('');
+  const [jobSource, setJobSource] = useState<JobSource>('boss');
+  const lastSearchRef = useRef<{ resumeText: string; profile: JobProfile } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { t } = useLocale();
 
@@ -42,7 +55,8 @@ export default function Home() {
   }, []);
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, targetTab?: TabMode) => {
+      const tab = targetTab ?? activeTab;
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -63,7 +77,7 @@ export default function Home() {
 
       setChatHistories((prev) => ({
         ...prev,
-        [activeTab]: [...prev[activeTab], userMsg, assistantMsg],
+        [tab]: [...prev[tab], userMsg, assistantMsg],
       }));
       setIsLoading(true);
 
@@ -73,17 +87,17 @@ export default function Home() {
         subtopic = chipMatch[1];
       }
 
-      const allMessages = [...chatHistories[activeTab], userMsg];
+      const allMessages = [...chatHistories[tab], userMsg];
 
       try {
         await sendChatMessage(
           allMessages,
-          activeTab,
+          tab,
           subtopic,
           (fullContent) => {
             setChatHistories((prev) => ({
               ...prev,
-              [activeTab]: prev[activeTab].map((m) =>
+              [tab]: prev[tab].map((m) =>
                 m.id === assistantId ? { ...m, content: fullContent } : m,
               ),
             }));
@@ -94,7 +108,7 @@ export default function Home() {
         if (err instanceof Error && err.name === 'AbortError') return;
         setChatHistories((prev) => ({
           ...prev,
-          [activeTab]: prev[activeTab].map((m) =>
+          [tab]: prev[tab].map((m) =>
             m.id === assistantId
               ? { ...m, content: t('chat.error') }
               : m,
@@ -224,6 +238,51 @@ export default function Home() {
     [activeTab],
   );
 
+  const handleStartJobChat = useCallback(
+    (tab: 'career_advice' | 'mock_interview', job: JobResult) => {
+      abortRef.current?.abort();
+      setIsLoading(false);
+      setSelectedJob(null);
+      setActiveTab(tab);
+
+      const jobLines = [
+        `## Job Details`,
+        `Title: ${job.title}`,
+        `Company: ${job.company}`,
+        job.company_industry ? `Industry: ${job.company_industry}` : '',
+        job.location ? `Location: ${job.location}` : '',
+        job.salary ? `Salary: ${job.salary}` : '',
+        job.experience_req ? `Experience: ${job.experience_req}` : '',
+        job.education_req ? `Education: ${job.education_req}` : '',
+        job.skills.length > 0 ? `Required Skills: ${job.skills.join(', ')}` : '',
+        job.match_reasons.length > 0 ? `\nMatch Strengths:\n${job.match_reasons.map(r => `- ${r}`).join('\n')}` : '',
+        job.concerns.length > 0 ? `\nConcerns:\n${job.concerns.map(c => `- ${c}`).join('\n')}` : '',
+        job.full_jd ? `\n## Job Description\n${job.full_jd}` : '',
+      ].filter(Boolean).join('\n');
+
+      const profileLines = jobProfile.target_roles?.length || jobProfile.skills?.length
+        ? [
+            `\n## Candidate Profile`,
+            jobProfile.target_roles?.length ? `Target Roles: ${jobProfile.target_roles.join(', ')}` : '',
+            jobProfile.skills?.length ? `Skills: ${jobProfile.skills.join(', ')}` : '',
+            jobProfile.experience_level ? `Experience Level: ${jobProfile.experience_level}` : '',
+            jobProfile.preferred_cities?.length ? `Preferred Cities: ${jobProfile.preferred_cities.join(', ')}` : '',
+          ].filter(Boolean).join('\n')
+        : '';
+
+      const resumeSection = jobResumeText
+        ? `\n## Resume\n${jobResumeText}`
+        : '';
+
+      const prompt = tab === 'mock_interview'
+        ? `I'm preparing for an interview for this role. Please start a mock interview based on the following context:\n\n${jobLines}${profileLines}${resumeSection}`
+        : `I'm considering this job opportunity. Please give me targeted career advice based on the following context:\n\n${jobLines}${profileLines}${resumeSection}`;
+
+      void handleSend(prompt, tab);
+    },
+    [handleSend, jobResumeText, jobProfile],
+  );
+
   const showRightPanel = selectedRef || selectedJob;
 
   return (
@@ -233,7 +292,22 @@ export default function Home() {
         <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
         {activeTab === 'job_match' ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <JobMatchTab onJobSelect={setSelectedJob} />
+            <JobMatchTab
+              onJobSelect={setSelectedJob}
+              resumeText={jobResumeText}
+              onResumeTextChange={setJobResumeText}
+              profile={jobProfile}
+              onProfileChange={setJobProfile}
+              view={jobMatchView}
+              onViewChange={setJobMatchView}
+              searchState={jobSearchState}
+              onSearchStateChange={setJobSearchState}
+              fileName={jobFileName}
+              onFileNameChange={setJobFileName}
+              source={jobSource}
+              onSourceChange={setJobSource}
+              lastSearchRef={lastSearchRef}
+            />
           </div>
         ) : (
           <>
@@ -258,7 +332,14 @@ export default function Home() {
 
       {selectedJob && (
         <div className="w-1/2 h-screen">
-          <JobDetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+          <JobDetailPanel
+            job={selectedJob}
+            onClose={() => setSelectedJob(null)}
+            resumeText={jobResumeText}
+            profile={jobProfile as JobProfile}
+            onRefClick={handleRefClick}
+            onStartChat={handleStartJobChat}
+          />
         </div>
       )}
 

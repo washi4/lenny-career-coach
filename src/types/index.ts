@@ -80,3 +80,22 @@ export interface JobSearchState {
   stats?: JobSearchStats;
   error?: string;
 }
+
+export interface LennyAdviceRequest {
+  type: 'per_job' | 'overall';
+  job?: JobResult;
+  jobs?: JobResult[];
+  profile: JobProfile;
+  resumeText: string;
+}
+
+export type LennyAdviceState = 'idle' | 'loading' | 'loaded' | 'error';
+
+export type JobMatchView = 'wizard' | 'progress' | 'results';
+
+export const INITIAL_SEARCH_STATE: JobSearchState = {
+  stage: 'idle',
+  message: '',
+  percent: 0,
+  jobs: [],
+};

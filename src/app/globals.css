@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg-primary: #0A0A0B;
-  --color-bg-secondary: #111113;
-  --color-bg-tertiary: #18181B;
-  --color-bg-elevated: #1E1E22;
-  --color-bg-hover: #252529;
+  --color-bg-primary: #0F172A;
+  --color-bg-secondary: #1E293B;
+  --color-bg-tertiary: #253347;
+  --color-bg-elevated: #2D3D53;
+  --color-bg-hover: #354760;
 
-  --color-accent: #6366F1;
-  --color-accent-hover: #818CF8;
-  --color-accent-muted: rgba(99, 102, 241, 0.15);
-  --color-accent-subtle: rgba(99, 102, 241, 0.08);
+  --color-accent: #10B981;
+  --color-accent-hover: #34D399;
+  --color-accent-muted: rgba(16, 185, 129, 0.18);
+  --color-accent-subtle: rgba(16, 185, 129, 0.08);
 
-  --color-text-primary: #EDEDEF;
-  --color-text-secondary: #A1A1AA;
-  --color-text-muted: #63636E;
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
 
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-border: rgba(148, 163, 184, 0.12);
+  --color-border-hover: rgba(148, 163, 184, 0.22);
 
-  --color-surface-user: #1E1E22;
+  --color-surface-user: #253347;
   --color-surface-assistant: transparent;
 
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
-  background-color: #0A0A0B;
-  color: #EDEDEF;
+  background-color: #0F172A;
+  color: #F1F5F9;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -40,10 +40,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(148, 163, 184, 0.15);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(148, 163, 184, 0.3);
 }
