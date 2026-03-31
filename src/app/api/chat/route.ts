@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CopilotClient, defineTool } from '@github/copilot-sdk';
-import * as path from 'path';
 import { z } from 'zod';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import * as path from 'path';
 import { existsSync, readFileSync } from 'fs';
-
-const execFileAsync = promisify(execFile);
+import {
+  searchViaServer,
+  searchViaSubprocess,
+  formatSearchResults,
+} from '@/lib/knowledge-search';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -89,114 +90,6 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
-type SearchResultItem = {
-  type?: 'podcast' | 'newsletter' | 'article';
-  title?: string;
-  date?: string;
-  url?: string;
-  similarity?: number;
-  text?: string;
-  source_file?: string;
-  source_path?: string;
-  youtube_id?: string;
-  guest?: string;
-};
-
-type SearchResponse = {
-  results?: SearchResultItem[];
-};
-
-const SEARCH_SERVER_URL = process.env.SEARCH_SERVER_URL ?? 'http://127.0.0.1:8001';
-
-async function searchViaServer(
-  query: string,
-  top_k: number,
-  content_type?: string,
-): Promise<SearchResponse> {
-  const body: Record<string, unknown> = { query, top_k };
-  if (content_type) body.content_type = content_type;
-
-  const res = await fetch(`${SEARCH_SERVER_URL}/search`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Search server returned ${res.status}: ${await res.text()}`);
-  }
-
-  return (await res.json()) as SearchResponse;
-}
-
-async function searchViaSubprocess(
-  query: string,
-  top_k: number,
-  content_type?: string,
-): Promise<SearchResponse> {
-  const projectRoot = process.cwd();
-  const searchScript = path.join(projectRoot, 'scripts', 'search.py');
-  const configFile = path.join(projectRoot, 'knowledge-coach-config.json');
-
-  const args = [searchScript, query, '--top-k', String(top_k)];
-  if (content_type) args.push('--type', content_type);
-  if (existsSync(configFile)) args.push('--config', configFile);
-
-  const { stdout, stderr } = await execFileAsync('python3', args, {
-    timeout: 90000,
-    maxBuffer: 1024 * 1024,
-    env: { ...process.env },
-    cwd: projectRoot,
-  });
-
-  if (stderr) console.error('[search_knowledge_base] subprocess stderr:', stderr);
-  return JSON.parse(stdout) as SearchResponse;
-}
-
-function formatSearchResults(results: SearchResultItem[], query: string) {
-  if (results.length === 0) {
-    return {
-      textResultForLlm: `No results found for query: "${query}". Try rephrasing your search or using different keywords.`,
-      resultType: 'success' as const,
-    };
-  }
-
-  const formatted = results
-    .map((result, index) => {
-      const source =
-        result.type === 'podcast'
-          ? '🎙️ Podcast'
-          : result.type === 'newsletter'
-            ? '📰 Newsletter'
-            : '📄 Article';
-      const title = result.title ?? 'Untitled';
-      const date = result.date ?? 'Unknown date';
-      const similarity = typeof result.similarity === 'number' ? result.similarity : 0;
-      const text = result.text ?? '';
-      const sourceFile = result.source_file ?? '';
-      const youtubeId = result.youtube_id ?? '';
-      const guest = result.guest ?? '';
-
-      const refNum = String(index + 1).padStart(2, '0');
-      const citeAs = `[REF-${refNum}: "${title}" | source:${sourceFile}]`;
-
-      let header = `[Result ${index + 1}] ${source}: "${title}"\nDate: ${date}\nSource File: ${sourceFile}`;
-      if (youtubeId) header += `\nYouTube ID: ${youtubeId}`;
-      if (guest) header += `\nGuest: ${guest}`;
-      header += `\nRelevance: ${(similarity * 100).toFixed(1)}%`;
-      header += `\n⚠️ CITE AS: ${citeAs}`;
-
-      return `${header}\n\n${text}`;
-    })
-    .join('\n\n---\n\n');
-
-  return {
-    textResultForLlm: `Found ${results.length} relevant results for "${query}":\n\n${formatted}`,
-    resultType: 'success' as const,
-  };
-}
-
 const searchTool = defineTool('search_knowledge_base', {
   description:
     'Searches the Lenny Career Coach knowledge base for relevant podcast/newsletter/article excerpts. Use this when the user asks for factual guidance, examples, citations, or specific advice that should be grounded in source material.',
@@ -262,7 +155,7 @@ export async function POST(req: NextRequest) {
     const skillDir = getSkillDirectory(mode);
     const skillContent = loadSkillContent(skillDir);
 
-    let session;
+    let session: Awaited<ReturnType<CopilotClient['createSession']>>;
     try {
       session = await copilot.createSession({
         model: getModelFromConfig(),
