@@ -316,7 +316,7 @@ function normalizeGoogleJob(raw: RawGoogleJob): NormalizedJob | null {
       boss_active_time: '',
       company_industry: '',
       company_scale: '',
-      job_url: applyOptions[0]?.link ?? raw.share_link ?? '',
+      job_url: applyOptions[0]?.link ?? '',
       full_jd: raw.description ?? '',
       source: 'google_jobs',
       via: raw.via ?? '',
@@ -339,7 +339,10 @@ async function searchGoogleJobs(
     throw new Error('SERPAPI_API_KEY not set');
   }
 
-  const resolvedLocation = JOB_MATCH_CONFIG.serpapi_location_map[location] ?? location;
+  const isRemote = location === 'Remote';
+  const resolvedLocation = isRemote
+    ? 'United States'
+    : (JOB_MATCH_CONFIG.serpapi_location_map[location] ?? location);
 
   const params = new URLSearchParams({
     engine: 'google_jobs',
@@ -348,6 +351,7 @@ async function searchGoogleJobs(
     hl: 'en',
     gl: 'us',
     api_key: apiKey,
+    ...(isRemote ? { ltype: '1' } : {}),
   });
 
   const resp = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
@@ -420,6 +424,31 @@ Rules:
 - Return the array sorted by score descending
 - Include ALL jobs in the output, even low-scoring ones`;
 
+const SCORING_PROMPT_GOOGLE = `You are a job matching scorer. Given a candidate's resume and a list of job postings with details, score each job 0-100 and provide analysis.
+
+Return ONLY a JSON array (no markdown, no wrapping, no explanation). Each element:
+{
+  "security_id": "the_id",
+  "score": 85,
+  "match_reasons": ["reason1", "reason2"],
+  "concerns": ["concern1"]
+}
+
+Scoring dimensions:
+- Skill Match (30%): How many required skills match the candidate?
+- Experience Match (20%): Does experience level and domain fit?
+- Compensation (15%): Is salary within or above expectation?
+- Role Level (15%): Does role level match career stage?
+- Company Fit (10%): Does company industry/scale match preferences?
+- JD Quality (10%): Is JD detailed? Any red flags?
+
+Rules:
+- match_reasons: 2-3 concise English bullet points
+- concerns: 0-2 concise English bullet points, only real issues
+- If dealbreakers match (e.g. excessive overtime, outsourcing), score below 30
+- Return the array sorted by score descending
+- Include ALL jobs in the output, even low-scoring ones`;
+
 type ScoreResult = { security_id: string; score: number; match_reasons: string[]; concerns: string[] };
 
 const SCORING_BATCH_SIZE = 5;
@@ -429,6 +458,7 @@ async function scoreBatch(
   resumeText: string,
   profile: JobSearchRequest['profile'],
   batch: NormalizedJob[],
+  source: 'boss' | 'google_jobs' = 'boss',
 ): Promise<ScoreResult[]> {
   const jobSummaries = batch.map((j, i) => [
     `--- Job ${i + 1} [${j.security_id}] ---`,
@@ -464,7 +494,7 @@ async function scoreBatch(
     systemMessage: {
       mode: 'customize',
       sections: {
-        identity: { action: 'replace', content: SCORING_PROMPT },
+        identity: { action: 'replace', content: source === 'google_jobs' ? SCORING_PROMPT_GOOGLE : SCORING_PROMPT },
         tone: { action: 'remove' },
         code_change_rules: { action: 'remove' },
         guidelines: { action: 'remove' },
@@ -491,6 +521,7 @@ async function scoreJobsWithLlm(
   resumeText: string,
   profile: JobSearchRequest['profile'],
   jobs: NormalizedJob[],
+  source: 'boss' | 'google_jobs' = 'boss',
 ): Promise<ScoreResult[]> {
   const batches: NormalizedJob[][] = [];
   for (let i = 0; i < jobs.length; i += SCORING_BATCH_SIZE) {
@@ -498,7 +529,7 @@ async function scoreJobsWithLlm(
   }
 
   const batchResults = await Promise.all(
-    batches.map((batch) => scoreBatch(resumeText, profile, batch)),
+    batches.map((batch) => scoreBatch(resumeText, profile, batch, source)),
   );
 
   return batchResults.flat();
@@ -722,7 +753,7 @@ async function runGoogleJobsPipeline(ctx: SseContext, body: JobSearchRequest): P
   emitProgress(ctx, 'searching', `找到 ${totalFetched} 个不重复职位`, 30);
   emitProgress(ctx, 'scoring', `AI 评分中 (${uniqueJobs.length} 个职位)...`, 70);
 
-  const scores = await scoreJobsWithLlm(resumeText, profile, uniqueJobs);
+  const scores = await scoreJobsWithLlm(resumeText, profile, uniqueJobs, 'google_jobs');
   const scoreMap = new Map(scores.map((s) => [s.security_id, s]));
 
   const scoredJobs = uniqueJobs

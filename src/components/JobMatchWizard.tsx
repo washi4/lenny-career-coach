@@ -116,6 +116,7 @@ export default function JobMatchWizard({
     skills: '',
     dealbreakers: '',
   });
+  const [draftCity, setDraftCity] = useState('');
 
   const runPrerequisiteCheck = useCallback(async () => {
     setCheckStatus('checking');
@@ -139,6 +140,19 @@ export default function JobMatchWizard({
     if (source !== 'boss') return;
     void runPrerequisiteCheck();
   }, [runPrerequisiteCheck, source]);
+
+  const prevSourceRef = useRef(source);
+  useEffect(() => {
+    if (prevSourceRef.current !== source) {
+      prevSourceRef.current = source;
+      setProfile((prev) => ({
+        ...prev,
+        preferred_cities: [],
+        salary_expectation: '',
+        experience_level: '',
+      }));
+    }
+  }, [source, setProfile]);
 
   const handleFile = useCallback(async (file: File | undefined) => {
     if (!file) return;
@@ -168,7 +182,7 @@ export default function JobMatchWizard({
       const response = await fetch('/api/jobs/extract-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeText: extractedText }),
+        body: JSON.stringify({ resumeText: extractedText, source }),
       });
 
       if (response.ok) {
@@ -187,7 +201,7 @@ export default function JobMatchWizard({
     } finally {
       setIsExtractingProfile(false);
     }
-  }, [onResumeTextChange, onFileNameChange, setProfile]);
+  }, [onResumeTextChange, onFileNameChange, setProfile, source]);
 
   const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -243,6 +257,35 @@ export default function JobMatchWizard({
       return {
         ...prev,
         preferred_cities: exists ? current.filter((item) => item !== city) : [...current, city],
+      };
+    });
+  };
+
+  const handleAddCustomCity = () => {
+    const value = draftCity.trim();
+    if (!value) return;
+    setProfile((prev) => {
+      const current = prev.preferred_cities ?? [];
+      if (current.includes(value)) return prev;
+      return { ...prev, preferred_cities: [...current, value] };
+    });
+    setDraftCity('');
+  };
+
+  const handleCustomCityKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddCustomCity();
+    }
+  };
+
+  const toggleDealbreaker = (value: string) => {
+    setProfile((prev) => {
+      const current = (prev.dealbreakers as string[] | undefined) ?? [];
+      const exists = current.includes(value);
+      return {
+        ...prev,
+        dealbreakers: exists ? current.filter((item) => item !== value) : [...current, value],
       };
     });
   };
@@ -444,7 +487,72 @@ export default function JobMatchWizard({
             <div className="space-y-4 rounded-2xl border border-border bg-bg-secondary p-4 md:p-5">
               {renderTagField('target_roles', 'job_match.field_target_roles')}
               {renderTagField('skills', 'job_match.field_skills')}
-              {renderTagField('dealbreakers', 'job_match.field_dealbreakers')}
+
+              <div>
+                <label htmlFor="job-match-dealbreakers" className="block text-sm font-medium text-text-primary mb-2">
+                  {t('job_match.field_dealbreakers')}
+                </label>
+                <div className="rounded-xl border border-border bg-bg-secondary px-3 py-3">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {(source === 'google_jobs' ? JOB_MATCH_CONFIG.common_dealbreakers_intl : JOB_MATCH_CONFIG.common_dealbreakers).map((item) => {
+                      const active = ((profile.dealbreakers as string[] | undefined) ?? []).includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleDealbreaker(item)}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-accent text-white'
+                              : 'bg-bg-tertiary text-text-secondary border border-border hover:border-border-hover'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {((profile.dealbreakers as string[] | undefined) ?? []).length > 0 && (
+                    <ul className="flex flex-wrap gap-2 mb-3" aria-label={t('job_match.field_dealbreakers')}>
+                      {((profile.dealbreakers as string[] | undefined) ?? []).map((tag) => (
+                        <li
+                          key={`dealbreakers-${tag}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-accent-muted text-text-primary px-2.5 py-1 text-xs"
+                        >
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleTagRemove('dealbreakers', tag)}
+                            className="rounded text-text-secondary hover:text-text-primary cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="job-match-dealbreakers"
+                      value={draftTags.dealbreakers}
+                      onChange={(event) => setDraftTags((prev) => ({ ...prev, dealbreakers: event.target.value }))}
+                      onKeyDown={(event) => handleTagInputKeyDown(event, 'dealbreakers')}
+                      placeholder={source === 'google_jobs' ? 'Add dealbreaker…' : '添加排除条件…'}
+                      aria-label={t('job_match.field_dealbreakers')}
+                      className="flex-1 bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-border-hover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleTagAdd('dealbreakers')}
+                      className="px-3 py-2 rounded-lg bg-bg-hover border border-border text-sm text-text-primary hover:border-border-hover cursor-pointer"
+                    >
+                      {t('job_match.field_add')}
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <p className="block text-sm font-medium text-text-primary mb-2">{t('job_match.field_cities')}</p>
@@ -472,6 +580,49 @@ export default function JobMatchWizard({
                       );
                     })}
                   </div>
+
+                  {(() => {
+                    const presetCities = source === 'google_jobs' ? JOB_MATCH_CONFIG.international_cities : JOB_MATCH_CONFIG.cities;
+                    const customCities = (profile.preferred_cities ?? []).filter(
+                      (c) => !(presetCities as readonly string[]).includes(c),
+                    );
+                    return customCities.length > 0 ? (
+                      <ul className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border" aria-label="Custom cities">
+                        {customCities.map((city) => (
+                          <li
+                            key={`custom-${city}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-accent-muted text-text-primary px-2.5 py-1 text-xs"
+                          >
+                            <span>{city}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleCity(city)}
+                              className="rounded text-text-secondary hover:text-text-primary cursor-pointer"
+                            >
+                              <X size={12} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null;
+                  })()}
+
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+                    <input
+                      value={draftCity}
+                      onChange={(event) => setDraftCity(event.target.value)}
+                      onKeyDown={handleCustomCityKeyDown}
+                      placeholder={source === 'google_jobs' ? 'Add city…' : '添加城市…'}
+                      className="flex-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-border-hover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomCity}
+                      className="px-3 py-2 rounded-lg bg-bg-hover border border-border text-sm text-text-primary hover:border-border-hover cursor-pointer"
+                    >
+                      {t('job_match.field_add')}
+                    </button>
+                  </div>
                 </fieldset>
               </div>
  
@@ -488,7 +639,7 @@ export default function JobMatchWizard({
                     className="w-full rounded-xl border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-border-hover"
                   >
                     <option value="" className="bg-bg-tertiary text-text-secondary">-</option>
-                    {JOB_MATCH_CONFIG.salary_ranges.map((salary) => (
+                    {(source === 'google_jobs' ? JOB_MATCH_CONFIG.international_salary_ranges : JOB_MATCH_CONFIG.salary_ranges).map((salary) => (
                       <option key={salary} value={salary} className="bg-bg-tertiary text-text-primary">
                         {salary}
                       </option>
@@ -507,7 +658,7 @@ export default function JobMatchWizard({
                     className="w-full rounded-xl border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-border-hover"
                   >
                     <option value="" className="bg-bg-tertiary text-text-secondary">-</option>
-                    {JOB_MATCH_CONFIG.experience_levels.map((level) => (
+                    {(source === 'google_jobs' ? JOB_MATCH_CONFIG.international_experience_levels : JOB_MATCH_CONFIG.experience_levels).map((level) => (
                       <option key={level} value={level} className="bg-bg-tertiary text-text-primary">
                         {level}
                       </option>

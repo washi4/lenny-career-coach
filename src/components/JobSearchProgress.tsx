@@ -21,21 +21,6 @@ const GOOGLE_STAGES: Array<{ key: ProgressStage; labelKey: string }> = [
   { key: 'done', labelKey: 'job_match.stage_scoring' },
 ];
 
-function getStageText(
-  t: (key: string, params?: Record<string, string | number>) => string,
-  locale: 'en' | 'zh',
-  stage: ProgressStage,
-) {
-  if (stage === 'done') {
-    return locale === 'zh' ? '完成' : 'Done';
-  }
-
-  if (stage === 'fetching') {
-    return t('job_match.stage_fetching', { current: '…', total: '…' });
-  }
-
-  return t(`job_match.stage_${stage}`);
-}
 
 export default function JobSearchProgress({
   state,
@@ -92,7 +77,13 @@ export default function JobSearchProgress({
           const isComplete = completedAll || (activeIndex !== -1 && index < activeIndex) || (isError && index < errorStageIndex);
           const isActive = !completedAll && !isError && activeIndex === index;
           const isFailed = isError && index === errorStageIndex;
-          const label = getStageText(t, locale, stage.key);
+          const label = stage.key === 'done'
+            ? (locale === 'zh' ? '完成' : 'Done')
+            : stage.key === 'fetching'
+              ? (isActive || isComplete)
+                ? t(stage.labelKey, { current: '…', total: '…' })
+                : (locale === 'zh' ? '获取职位详情...' : 'Fetching job details...')
+              : t(stage.labelKey);
 
           return (
             <li key={stage.key} className="flex items-center gap-3 text-sm">

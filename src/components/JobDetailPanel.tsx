@@ -188,7 +188,7 @@ export default function JobDetailPanel({ job, onClose }: JobDetailPanelProps) {
             </section>
           )}
 
-          {job.source === 'google_jobs' && job.apply_options && job.apply_options.length > 1 ? (
+          {job.source === 'google_jobs' && job.apply_options && job.apply_options.length > 0 ? (
             <section className="space-y-2">
               {job.apply_options.map((opt) => (
                 <a
@@ -202,6 +202,18 @@ export default function JobDetailPanel({ job, onClose }: JobDetailPanelProps) {
                   <ExternalLink size={14} />
                 </a>
               ))}
+            </section>
+          ) : job.source === 'google_jobs' && !job.job_url ? (
+            <section>
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(`"${job.title}" "${job.company}" jobs`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-white/5"
+              >
+                {t('job_match.detail_search_google')}
+                <ExternalLink size={16} />
+              </a>
             </section>
           ) : job.job_url && (
             <section>

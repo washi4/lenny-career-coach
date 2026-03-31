@@ -173,10 +173,26 @@ export const JOB_MATCH_CONFIG = {
     '3K以下', '3-5K', '5-10K', '10-15K', '15-20K',
     '20-30K', '30-50K', '50K以上',
   ],
+  international_salary_ranges: [
+    '$50K-$80K', '$80K-$120K', '$120K-$160K', '$160K-$200K',
+    '$200K-$250K', '$250K-$300K', '$300K+',
+  ],
   experience_levels: [
     '应届', '1年以内', '1-3年', '3-5年', '5-10年', '10年以上',
   ],
+  international_experience_levels: [
+    'Entry Level', '1-3 years', '3-5 years', '5-10 years', '10+ years',
+  ],
   education_levels: [
     '大专', '本科', '硕士', '博士',
+  ],
+  international_education_levels: [
+    'Associate', 'Bachelor', 'Master', 'PhD',
+  ],
+  common_dealbreakers: [
+    '996', '加班严重', '外包', '大小周', '无社保', '频繁出差',
+  ],
+  common_dealbreakers_intl: [
+    'No remote', 'Low pay', 'Excessive overtime', 'Contract only', 'No visa sponsorship', 'Frequent travel',
   ],
 } as const;
