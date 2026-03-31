@@ -50,3 +50,6 @@ __pycache__/
 
 # Tesseract OCR data
 *.traineddata
+
+# Plan documents (local reference only)
+docs/plans/

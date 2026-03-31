@@ -1,20 +1,12 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import type { JobProfile, JobResult, JobSearchState, JobSearchStats, JobSource } from '@/types';
+import { useCallback, useRef } from 'react';
+import type { JobProfile, JobResult, JobSearchState, JobSearchStats, JobSource, JobMatchView } from '@/types';
+import { INITIAL_SEARCH_STATE } from '@/types';
 import JobMatchWizard from '@/components/JobMatchWizard';
 import JobSearchProgress from '@/components/JobSearchProgress';
 import JobResults from '@/components/JobResults';
 import { searchJobs } from '@/lib/jobs-client';
-
-type JobMatchView = 'wizard' | 'progress' | 'results';
-
-const INITIAL_SEARCH_STATE: JobSearchState = {
-  stage: 'idle',
-  message: '',
-  percent: 0,
-  jobs: [],
-};
 
 interface JobMatchTabProps {
   onJobSelect: (job: JobResult | null) => void;
@@ -22,6 +14,15 @@ interface JobMatchTabProps {
   onResumeTextChange: (text: string) => void;
   profile: Partial<JobProfile>;
   onProfileChange: (updater: Partial<JobProfile> | ((prev: Partial<JobProfile>) => Partial<JobProfile>)) => void;
+  view: JobMatchView;
+  onViewChange: (view: JobMatchView) => void;
+  searchState: JobSearchState;
+  onSearchStateChange: (updater: JobSearchState | ((prev: JobSearchState) => JobSearchState)) => void;
+  fileName: string;
+  onFileNameChange: (name: string) => void;
+  source: JobSource;
+  onSourceChange: (source: JobSource) => void;
+  lastSearchRef: React.RefObject<{ resumeText: string; profile: JobProfile } | null>;
 }
 
 export default function JobMatchTab({
@@ -30,14 +31,17 @@ export default function JobMatchTab({
   onResumeTextChange,
   profile,
   onProfileChange,
+  view,
+  onViewChange,
+  searchState,
+  onSearchStateChange,
+  fileName,
+  onFileNameChange,
+  source,
+  onSourceChange,
+  lastSearchRef,
 }: JobMatchTabProps) {
-  const [view, setView] = useState<JobMatchView>('wizard');
-  const [searchState, setSearchState] = useState<JobSearchState>(INITIAL_SEARCH_STATE);
   const abortRef = useRef<AbortController | null>(null);
-  const lastSearchRef = useRef<{ resumeText: string; profile: JobProfile } | null>(null);
-
-  const [fileName, setFileName] = useState('');
-  const [source, setSource] = useState<JobSource>('boss');
 
   const handleSearch = useCallback(
     async (resumeText: string, profile: JobProfile) => {
@@ -46,8 +50,8 @@ export default function JobMatchTab({
       abortRef.current = controller;
       lastSearchRef.current = { resumeText, profile };
 
-      setSearchState({ ...INITIAL_SEARCH_STATE, stage: source === 'google_jobs' ? 'extracting' : 'checking' });
-      setView('progress');
+      onSearchStateChange({ ...INITIAL_SEARCH_STATE, stage: source === 'google_jobs' ? 'extracting' : 'checking' });
+      onViewChange('progress');
 
       try {
         await searchJobs(
@@ -55,20 +59,20 @@ export default function JobMatchTab({
           profile,
           source,
           (partial) => {
-            setSearchState((prev) => ({ ...prev, ...partial }));
+            onSearchStateChange((prev) => ({ ...prev, ...partial }));
           },
           (jobs: JobResult[], stats: JobSearchStats) => {
-            setSearchState((prev) => ({
+            onSearchStateChange((prev) => ({
               ...prev,
               stage: 'done',
               percent: 100,
               jobs,
               stats,
             }));
-            setView('results');
+            onViewChange('results');
           },
           (error: string) => {
-            setSearchState((prev) => ({
+            onSearchStateChange((prev) => ({
               ...prev,
               stage: 'error',
               error,
@@ -78,34 +82,34 @@ export default function JobMatchTab({
         );
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') return;
-        setSearchState((prev) => ({
+        onSearchStateChange((prev) => ({
           ...prev,
           stage: 'error',
           error: err instanceof Error ? err.message : 'Unknown error',
         }));
       }
     },
-    [source],
+    [source, onSearchStateChange, onViewChange, lastSearchRef],
   );
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setSearchState(INITIAL_SEARCH_STATE);
-    setView('wizard');
-  }, []);
+    onSearchStateChange(INITIAL_SEARCH_STATE);
+    onViewChange('wizard');
+  }, [onSearchStateChange, onViewChange]);
 
   const handleRetry = useCallback(() => {
     if (lastSearchRef.current) {
       handleSearch(lastSearchRef.current.resumeText, lastSearchRef.current.profile);
     }
-  }, [handleSearch]);
+  }, [handleSearch, lastSearchRef]);
 
   const handleNewSearch = useCallback(() => {
     onJobSelect(null);
-    setSearchState(INITIAL_SEARCH_STATE);
-    setView('wizard');
-  }, [onJobSelect]);
+    onSearchStateChange(INITIAL_SEARCH_STATE);
+    onViewChange('wizard');
+  }, [onJobSelect, onSearchStateChange, onViewChange]);
 
   const handleJobClick = useCallback(
     (job: JobResult) => {
@@ -122,11 +126,11 @@ export default function JobMatchTab({
           resumeText={resumeText}
           onResumeTextChange={onResumeTextChange}
           fileName={fileName}
-          onFileNameChange={setFileName}
+          onFileNameChange={onFileNameChange}
           profile={profile}
           onProfileChange={onProfileChange}
           source={source}
-          onSourceChange={setSource}
+          onSourceChange={onSourceChange}
         />
       </div>
     );

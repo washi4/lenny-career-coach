@@ -145,6 +145,7 @@ export const translations = {
       source_boss: 'China (Boss直聘)',
       source_google: 'Global (Google Jobs)',
       source_boss_desc: 'Search live listings on Boss直聘',
+      source_boss_warning: '⚠ Boss直聘 may block requests due to IP restrictions. If searches fail, try again later or switch to Google Jobs.',
       source_google_desc: 'Search global jobs via Google',
       stage_searching_google: 'Searching Google Jobs...',
       detail_open_link_google: 'Apply',
@@ -158,6 +159,8 @@ export const translations = {
       lenny_retry: 'Retry',
       lenny_collapse: 'Collapse',
       lenny_expand: 'Expand',
+      start_career_advice: 'Career Advice for This Role',
+      start_mock_interview: 'Mock Interview for This Role',
     },
   },
   zh: {
@@ -300,6 +303,7 @@ export const translations = {
       source_boss: '国内职位 (Boss直聘)',
       source_google: '海外职位 (Google Jobs)',
       source_boss_desc: '搜索 Boss直聘 实时职位',
+      source_boss_warning: '⚠ Boss直聘 可能因 IP 限制封禁请求。如搜索失败，请稍后重试或切换至 Google Jobs。',
       source_google_desc: '通过 Google 搜索全球职位',
       stage_searching_google: '搜索 Google Jobs...',
       detail_open_link_google: '申请职位',
@@ -313,6 +317,8 @@ export const translations = {
       lenny_retry: '重试',
       lenny_collapse: '收起',
       lenny_expand: '展开',
+      start_career_advice: '针对该职位咨询',
+      start_mock_interview: '针对该职位模拟面试',
     },
   },
 };

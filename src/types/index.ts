@@ -90,3 +90,12 @@ export interface LennyAdviceRequest {
 }
 
 export type LennyAdviceState = 'idle' | 'loading' | 'loaded' | 'error';
+
+export type JobMatchView = 'wizard' | 'progress' | 'results';
+
+export const INITIAL_SEARCH_STATE: JobSearchState = {
+  stage: 'idle',
+  message: '',
+  percent: 0,
+  jobs: [],
+};

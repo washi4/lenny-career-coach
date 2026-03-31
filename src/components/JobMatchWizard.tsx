@@ -118,33 +118,11 @@ export default function JobMatchWizard({
   });
   const [draftCity, setDraftCity] = useState('');
 
-  const runPrerequisiteCheck = useCallback(async () => {
-    setCheckStatus('checking');
-
-    try {
-      const response = await fetch('/api/jobs/check', { method: 'GET' });
-      if (!response.ok) {
-        setCheckStatus('failed');
-        return;
-      }
-
-      const result = (await response.json()) as CheckResponse;
-      setCheckResult(result);
-      setCheckStatus(result.opencli && result.bridge && result.boss ? 'passed' : 'failed');
-    } catch {
-      setCheckStatus('failed');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (source !== 'boss') return;
-    void runPrerequisiteCheck();
-  }, [runPrerequisiteCheck, source]);
-
   const prevSourceRef = useRef(source);
   useEffect(() => {
     if (prevSourceRef.current !== source) {
       prevSourceRef.current = source;
+      setCheckStatus(null);
       setProfile((prev) => ({
         ...prev,
         preferred_cities: [],
@@ -303,6 +281,30 @@ export default function JobMatchWizard({
 
   const canSearch = resumeText.trim().length > 0;
 
+  const handleSearch = useCallback(async () => {
+    if (source === 'boss') {
+      setCheckStatus('checking');
+      try {
+        const response = await fetch('/api/jobs/check', { method: 'GET' });
+        if (!response.ok) {
+          setCheckStatus('failed');
+          return;
+        }
+        const result = (await response.json()) as CheckResponse;
+        setCheckResult(result);
+        if (!(result.opencli && result.bridge && result.boss)) {
+          setCheckStatus('failed');
+          return;
+        }
+        setCheckStatus('passed');
+      } catch {
+        setCheckStatus('failed');
+        return;
+      }
+    }
+    onSearch(resumeText, normalizedProfile);
+  }, [source, onSearch, resumeText, normalizedProfile]);
+
   const renderTagField = (field: TagField, labelKey: string) => {
     const fieldId = `job-match-${field}`;
     const tags = (profile[field] as string[] | undefined) ?? [];
@@ -384,54 +386,12 @@ export default function JobMatchWizard({
             {t('job_match.source_google')}
           </button>
         </div>
+        {source === 'boss' && (
+          <p className="mt-2 text-xs text-amber-400/80">{t('job_match.source_boss_warning')}</p>
+        )}
       </div>
 
-      {source === 'boss' && checkStatus !== 'passed' && (
-        <section className="rounded-2xl border border-border bg-bg-secondary p-5 md:p-6" aria-live="polite">
-          <h2 className="text-lg font-semibold text-text-primary">{t('job_match.setup_title')}</h2>
-          <p className="text-sm text-text-secondary mt-1">{t('job_match.setup_desc')}</p>
-
-          <ul className="mt-5 space-y-3" aria-label={t('job_match.setup_title')}>
-            {[
-              { key: 'opencli', label: t('job_match.check_opencli'), ok: checkResult.opencli },
-              { key: 'bridge', label: t('job_match.check_bridge'), ok: checkResult.bridge },
-              { key: 'boss', label: t('job_match.check_boss'), ok: checkResult.boss },
-            ].map((item) => (
-              <li
-                key={item.key}
-                className="flex items-center justify-between rounded-xl border border-border bg-bg-tertiary px-3 py-2"
-              >
-                <span className="text-sm text-text-primary">{item.label}</span>
-                {item.ok ? (
-                  <CheckCircle2 size={18} className="text-emerald-400" aria-hidden="true" />
-                ) : (
-                  <XCircle size={18} className="text-red-400" aria-hidden="true" />
-                )}
-              </li>
-            ))}
-          </ul>
-
-          {!checkResult.boss && checkStatus === 'failed' && (
-            <p className="mt-4 text-xs text-text-secondary">{t('job_match.check_fail_boss')}</p>
-          )}
-
-          <div className="mt-5 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void runPrerequisiteCheck()}
-              disabled={checkStatus === 'checking'}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60 cursor-pointer"
-            >
-              {checkStatus === 'checking' && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
-              <span>{t('job_match.check_button')}</span>
-            </button>
-            <span className="text-xs text-text-secondary">{t('job_match.setup_guide')}</span>
-          </div>
-        </section>
-      )}
-
-      {(source === 'google_jobs' || checkStatus === 'passed') && (
-        <>
+      <>
           <div>
             <h3 className="text-base font-semibold text-text-primary mb-3">{t('job_match.step_upload')}</h3>
             <button
@@ -667,20 +627,43 @@ export default function JobMatchWizard({
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
                 <button
                   type="button"
-                  onClick={() => onSearch(resumeText, normalizedProfile)}
-                  disabled={!canSearch}
-                  className="w-full md:w-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={() => void handleSearch()}
+                  disabled={!canSearch || checkStatus === 'checking'}
+                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {t('job_match.find_jobs')}
+                  {checkStatus === 'checking' && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                  {checkStatus === 'checking' ? t('job_match.check_button') : t('job_match.find_jobs')}
                 </button>
+
+                {source === 'boss' && checkStatus === 'failed' && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 space-y-3" aria-live="polite">
+                    <p className="text-sm font-medium text-red-400">{t('job_match.setup_title')}</p>
+                    <ul className="space-y-2">
+                      {[
+                        { key: 'opencli', label: t('job_match.check_opencli'), ok: checkResult.opencli },
+                        { key: 'bridge', label: t('job_match.check_bridge'), ok: checkResult.bridge },
+                        { key: 'boss', label: t('job_match.check_boss'), ok: checkResult.boss },
+                      ].map((item) => (
+                        <li key={item.key} className="flex items-center gap-2 text-sm">
+                          {item.ok ? (
+                            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" aria-hidden="true" />
+                          ) : (
+                            <XCircle size={14} className="text-red-400 shrink-0" aria-hidden="true" />
+                          )}
+                          <span className="text-text-secondary">{item.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-text-secondary">{t('job_match.setup_guide')}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </>
-      )}
     </section>
   );
 }

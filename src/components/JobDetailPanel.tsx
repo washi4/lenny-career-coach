@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react';
-import { X, Coins, MapPin, GraduationCap, Briefcase, Building2, UserRound, Circle, CheckCircle2, AlertTriangle, ExternalLink, BookOpen } from 'lucide-react';
+import { X, Coins, MapPin, GraduationCap, Briefcase, Building2, UserRound, Circle, CheckCircle2, AlertTriangle, ExternalLink, BookOpen, MessageSquare, Mic } from 'lucide-react';
 import type { JobResult, JobProfile, LennyAdviceState, Reference } from '@/types';
 import { useLocale } from '@/lib/i18n';
 import { fetchLennyAdvice } from '@/lib/lenny-advice-client';
@@ -13,6 +13,7 @@ interface JobDetailPanelProps {
   resumeText?: string;
   profile?: JobProfile;
   onRefClick?: (ref: Reference) => void;
+  onStartChat?: (tab: 'career_advice' | 'mock_interview', job: JobResult) => void;
 }
 
 function getScoreClasses(score: number) {
@@ -45,7 +46,7 @@ function LabelValue({ label, value, icon: Icon }: { label: string; value: string
   );
 }
 
-export default function JobDetailPanel({ job, onClose, resumeText, profile, onRefClick }: JobDetailPanelProps) {
+export default function JobDetailPanel({ job, onClose, resumeText, profile, onRefClick, onStartChat }: JobDetailPanelProps) {
   const { t, locale } = useLocale();
   const scoreClasses = getScoreClasses(job.score);
   const bossActivity = getBossActivityState(job.boss_active_time);
@@ -190,21 +191,43 @@ export default function JobDetailPanel({ job, onClose, resumeText, profile, onRe
           )}
 
           {resumeText && profile && (
-            <section>
-              <button
-                type="button"
-                onClick={handleAskLenny}
-                disabled={lennyState === 'loading'}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
-              >
-                <BookOpen size={16} />
-                {lennyState === 'loading' ? t('job_match.lenny_loading')
-                  : lennyState === 'loaded' ? (lennyExpanded ? t('job_match.lenny_collapse') : t('job_match.lenny_expand'))
-                    : t('job_match.ask_lenny')}
-              </button>
+            <section className="space-y-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAskLenny}
+                  disabled={lennyState === 'loading'}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
+                >
+                  <BookOpen size={14} />
+                  {lennyState === 'loading' ? t('job_match.lenny_loading')
+                    : lennyState === 'loaded' ? (lennyExpanded ? t('job_match.lenny_collapse') : t('job_match.lenny_expand'))
+                      : t('job_match.ask_lenny')}
+                </button>
+                {onStartChat && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onStartChat('career_advice', job)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-bg-tertiary px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-hover"
+                    >
+                      <MessageSquare size={14} />
+                      {t('job_match.start_career_advice')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onStartChat('mock_interview', job)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-bg-tertiary px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-hover"
+                    >
+                      <Mic size={14} />
+                      {t('job_match.start_mock_interview')}
+                    </button>
+                  </>
+                )}
+              </div>
 
               {lennyState === 'loading' && lennyContent && (
-                <div className="mt-3 rounded-xl border border-border bg-bg-tertiary p-4">
+                <div className="rounded-xl border border-border bg-bg-tertiary p-4">
                   <div className="text-sm leading-relaxed text-text-primary">
                     {renderContent(lennyContent, onRefClick)}
                   </div>
@@ -212,7 +235,7 @@ export default function JobDetailPanel({ job, onClose, resumeText, profile, onRe
               )}
 
               {lennyState === 'loaded' && lennyExpanded && lennyContent && (
-                <div className="mt-3 rounded-xl border border-accent/20 bg-bg-tertiary p-4">
+                <div className="rounded-xl border border-accent/20 bg-bg-tertiary p-4">
                   <div className="text-sm leading-relaxed text-text-primary">
                     {renderContent(lennyContent, onRefClick)}
                   </div>
@@ -220,7 +243,7 @@ export default function JobDetailPanel({ job, onClose, resumeText, profile, onRe
               )}
 
               {lennyState === 'error' && (
-                <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400">
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400">
                   <p>{t('job_match.lenny_error')}</p>
                   <button
                     type="button"
