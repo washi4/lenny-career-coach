@@ -16,26 +16,27 @@ const INITIAL_SEARCH_STATE: JobSearchState = {
   jobs: [],
 };
 
-const INITIAL_PROFILE: Partial<JobProfile> = {
-  target_roles: [],
-  skills: [],
-  dealbreakers: [],
-  preferred_cities: [],
-};
+interface JobMatchTabProps {
+  onJobSelect: (job: JobResult | null) => void;
+  resumeText: string;
+  onResumeTextChange: (text: string) => void;
+  profile: Partial<JobProfile>;
+  onProfileChange: (updater: Partial<JobProfile> | ((prev: Partial<JobProfile>) => Partial<JobProfile>)) => void;
+}
 
 export default function JobMatchTab({
   onJobSelect,
-}: {
-  onJobSelect: (job: JobResult | null) => void;
-}) {
+  resumeText,
+  onResumeTextChange,
+  profile,
+  onProfileChange,
+}: JobMatchTabProps) {
   const [view, setView] = useState<JobMatchView>('wizard');
   const [searchState, setSearchState] = useState<JobSearchState>(INITIAL_SEARCH_STATE);
   const abortRef = useRef<AbortController | null>(null);
   const lastSearchRef = useRef<{ resumeText: string; profile: JobProfile } | null>(null);
 
-  const [resumeText, setResumeText] = useState('');
   const [fileName, setFileName] = useState('');
-  const [profile, setProfile] = useState<Partial<JobProfile>>(INITIAL_PROFILE);
   const [source, setSource] = useState<JobSource>('boss');
 
   const handleSearch = useCallback(
@@ -119,11 +120,11 @@ export default function JobMatchTab({
         <JobMatchWizard
           onSearch={handleSearch}
           resumeText={resumeText}
-          onResumeTextChange={setResumeText}
+          onResumeTextChange={onResumeTextChange}
           fileName={fileName}
           onFileNameChange={setFileName}
           profile={profile}
-          onProfileChange={setProfile}
+          onProfileChange={onProfileChange}
           source={source}
           onSourceChange={setSource}
         />
@@ -154,6 +155,8 @@ export default function JobMatchTab({
         stats={searchState.stats ?? { total_fetched: 0, after_filter: 0, top_results: 0 }}
         onJobClick={handleJobClick}
         onNewSearch={handleNewSearch}
+        resumeText={resumeText}
+        profile={profile as JobProfile}
       />
     </div>
   );

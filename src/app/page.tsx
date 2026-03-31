@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { TabMode, Message, Reference, JobResult } from '@/types';
+import type { TabMode, Message, Reference, JobResult, JobProfile } from '@/types';
 import Header from '@/components/Header';
 import TabBar from '@/components/TabBar';
 import ChatArea from '@/components/ChatArea';
@@ -28,6 +28,13 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRef, setSelectedRef] = useState<Reference | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobResult | null>(null);
+  const [jobResumeText, setJobResumeText] = useState('');
+  const [jobProfile, setJobProfile] = useState<Partial<JobProfile>>({
+    target_roles: [],
+    skills: [],
+    dealbreakers: [],
+    preferred_cities: [],
+  });
   const abortRef = useRef<AbortController | null>(null);
   const { t } = useLocale();
 
@@ -233,7 +240,13 @@ export default function Home() {
         <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
         {activeTab === 'job_match' ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <JobMatchTab onJobSelect={setSelectedJob} />
+            <JobMatchTab
+              onJobSelect={setSelectedJob}
+              resumeText={jobResumeText}
+              onResumeTextChange={setJobResumeText}
+              profile={jobProfile}
+              onProfileChange={setJobProfile}
+            />
           </div>
         ) : (
           <>
@@ -258,7 +271,13 @@ export default function Home() {
 
       {selectedJob && (
         <div className="w-1/2 h-screen">
-          <JobDetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+          <JobDetailPanel
+            job={selectedJob}
+            onClose={() => setSelectedJob(null)}
+            resumeText={jobResumeText}
+            profile={jobProfile as JobProfile}
+            onRefClick={handleRefClick}
+          />
         </div>
       )}
 

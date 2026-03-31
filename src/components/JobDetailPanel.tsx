@@ -1,13 +1,18 @@
 'use client';
 
-import type { ComponentType } from 'react';
-import { X, Coins, MapPin, GraduationCap, Briefcase, Building2, UserRound, Circle, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
-import type { JobResult } from '@/types';
+import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react';
+import { X, Coins, MapPin, GraduationCap, Briefcase, Building2, UserRound, Circle, CheckCircle2, AlertTriangle, ExternalLink, BookOpen } from 'lucide-react';
+import type { JobResult, JobProfile, LennyAdviceState, Reference } from '@/types';
 import { useLocale } from '@/lib/i18n';
+import { fetchLennyAdvice } from '@/lib/lenny-advice-client';
+import { renderContent } from '@/lib/markdown-renderer';
 
 interface JobDetailPanelProps {
   job: JobResult;
   onClose: () => void;
+  resumeText?: string;
+  profile?: JobProfile;
+  onRefClick?: (ref: Reference) => void;
 }
 
 function getScoreClasses(score: number) {
@@ -40,11 +45,15 @@ function LabelValue({ label, value, icon: Icon }: { label: string; value: string
   );
 }
 
-export default function JobDetailPanel({ job, onClose }: JobDetailPanelProps) {
+export default function JobDetailPanel({ job, onClose, resumeText, profile, onRefClick }: JobDetailPanelProps) {
   const { t, locale } = useLocale();
   const scoreClasses = getScoreClasses(job.score);
   const bossActivity = getBossActivityState(job.boss_active_time);
   const salaryText = job.annual_salary || job.salary;
+  const [lennyState, setLennyState] = useState<LennyAdviceState>('idle');
+  const [lennyContent, setLennyContent] = useState('');
+  const [lennyExpanded, setLennyExpanded] = useState(true);
+  const lennyAbortRef = useRef<AbortController | null>(null);
   const labels = locale === 'zh'
     ? { salary: '薪资', location: '地点', experience: '经验', education: '学历' }
     : { salary: 'Salary', location: 'Location', experience: 'Experience', education: 'Education' };
@@ -58,6 +67,48 @@ export default function JobDetailPanel({ job, onClose }: JobDetailPanelProps) {
 
   const hasRecruiter = Boolean(job.boss_name || job.boss_title || job.boss_active_time);
   const hasCompany = Boolean(job.company_industry || job.company_scale);
+
+  useEffect(() => {
+    const securityId = job.security_id;
+    if (!securityId) return;
+    lennyAbortRef.current?.abort();
+    queueMicrotask(() => {
+      setLennyState('idle');
+      setLennyContent('');
+      setLennyExpanded(true);
+    });
+  }, [job.security_id]);
+
+  const handleAskLenny = useCallback(async () => {
+    if (lennyState === 'loaded') {
+      setLennyExpanded(!lennyExpanded);
+      return;
+    }
+    if (!resumeText || !profile) return;
+
+    lennyAbortRef.current?.abort();
+    const controller = new AbortController();
+    lennyAbortRef.current = controller;
+
+    setLennyState('loading');
+    setLennyContent('');
+
+    try {
+      await fetchLennyAdvice(
+        { type: 'per_job', job, profile, resumeText },
+        (content) => setLennyContent(content),
+        () => setLennyState('loaded'),
+        (error) => {
+          console.error('[ask-lenny]', error);
+          setLennyState('error');
+        },
+        controller.signal,
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setLennyState('error');
+    }
+  }, [lennyState, lennyExpanded, resumeText, profile, job]);
 
   return (
     <div className="flex flex-col h-full bg-bg-secondary border-l border-border">
@@ -135,6 +186,54 @@ export default function JobDetailPanel({ job, onClose }: JobDetailPanelProps) {
                   </div>
                 )}
               </div>
+            </section>
+          )}
+
+          {resumeText && profile && (
+            <section>
+              <button
+                type="button"
+                onClick={handleAskLenny}
+                disabled={lennyState === 'loading'}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
+              >
+                <BookOpen size={16} />
+                {lennyState === 'loading' ? t('job_match.lenny_loading')
+                  : lennyState === 'loaded' ? (lennyExpanded ? t('job_match.lenny_collapse') : t('job_match.lenny_expand'))
+                    : t('job_match.ask_lenny')}
+              </button>
+
+              {lennyState === 'loading' && lennyContent && (
+                <div className="mt-3 rounded-xl border border-border bg-bg-tertiary p-4">
+                  <div className="text-sm leading-relaxed text-text-primary">
+                    {renderContent(lennyContent, onRefClick)}
+                  </div>
+                </div>
+              )}
+
+              {lennyState === 'loaded' && lennyExpanded && lennyContent && (
+                <div className="mt-3 rounded-xl border border-accent/20 bg-bg-tertiary p-4">
+                  <div className="text-sm leading-relaxed text-text-primary">
+                    {renderContent(lennyContent, onRefClick)}
+                  </div>
+                </div>
+              )}
+
+              {lennyState === 'error' && (
+                <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400">
+                  <p>{t('job_match.lenny_error')}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLennyState('idle');
+                      void handleAskLenny();
+                    }}
+                    className="mt-2 text-accent hover:underline"
+                  >
+                    {t('job_match.lenny_retry')}
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
