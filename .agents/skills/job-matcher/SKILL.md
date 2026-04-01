@@ -1,69 +1,95 @@
 ---
 name: job-matcher
-description: Smart job matching tool that uses OpenCLI to search Boss直聘 and LLM to rank jobs against your resume. Triggers include "find jobs", "match jobs", "job search", "找工作", "职位匹配", "推荐职位".
+description: Use when users ask to find jobs, match jobs against a resume, search Boss直聘 or Google Jobs, rank job listings, or need help with "找工作", "职位匹配", "推荐职位", "job search", or "find jobs for me".
 ---
 
-# Job Matcher — AI-Powered Boss直聘 Job Recommender
+# Job Matcher
 
-You are a job matching assistant. You help users find the best-matching jobs on Boss直聘 by analyzing their resume against live job listings fetched via OpenCLI.
+AI-powered job matching that searches live listings and scores them against your resume. Supports Boss直聘 (via OpenCLI) and Google Jobs (via SerpApi).
 
-## PREREQUISITES
+## When to Use
 
-Before starting, verify the user has OpenCLI set up:
+Use this skill when the user:
 
-1. Run: `opencli doctor` — check Browser Bridge connectivity
-2. If it fails, tell the user:
-   - Install OpenCLI: `npm install -g @jackwener/opencli`
-   - Install Browser Bridge extension (see https://github.com/jackwener/opencli)
-   - Open Chrome and log into https://www.zhipin.com
-   - Run `opencli doctor` again
+- Wants to find jobs matching their resume or background
+- Asks to search Boss直聘, Google Jobs, or job platforms in general
+- Has a resume and wants ranked job recommendations
+- Says "找工作", "职位匹配", "推荐职位", "find jobs", "match jobs", "job search"
+- Wants to compare job listings against their skills and preferences
 
-## WORKFLOW
+Do not use this skill when:
 
-### Phase 1: Resume Input & Profile Extraction
+- The user wants career advice without job searching (use a career coaching skill)
+- The user wants interview prep (use a mock interview skill)
+- The user wants resume editing (use a resume review skill)
 
-Accept the user's resume in one of two ways:
-- **File path**: Read the file (PDF, MD, TXT) from the provided path
-- **Pasted text**: User pastes resume content directly in chat
+## Prerequisites
 
-Extract a structured profile with these fields:
+### For Boss直聘 (Chinese job market)
+
+1. **OpenCLI**: `npm install -g @jackwener/opencli`
+2. **Browser Bridge**: Install the Chrome extension (see https://github.com/jackwener/opencli)
+3. **Boss直聘 login**: Open Chrome, go to https://www.zhipin.com, log in
+4. **Verify**: Run `opencli doctor` — should show Browser Bridge connected
+
+### For Google Jobs (international)
+
+1. **SerpApi key**: Sign up at https://serpapi.com/
+2. **Set environment variable**: `export SERPAPI_API_KEY=your_key_here`
+3. **Verify**: `curl "https://serpapi.com/search.json?engine=google_jobs&q=test&api_key=$SERPAPI_API_KEY"` should return results
+
+If neither source is available, inform the user and help them set one up.
+
+## Workflow
+
+### Phase 1: Resume Input and Profile Extraction
+
+Accept the user's resume via:
+- **File path**: Read PDF, MD, or TXT from the provided path
+- **Pasted text**: User pastes resume content directly
+
+Extract a structured profile:
 
 ```json
 {
-  "target_roles": ["后端工程师", "Go开发工程师"],
-  "skills": ["Go", "Python", "Kubernetes", "MySQL", "Redis", "gRPC"],
+  "target_roles": ["Backend Engineer", "Go Developer"],
+  "skills": ["Go", "Python", "Kubernetes", "MySQL", "Redis"],
   "experience_years": 5,
   "experience_level": "3-5年",
   "education": "本科",
   "preferred_cities": ["杭州", "上海"],
   "preferred_industries": ["互联网", "人工智能"],
   "salary_expectation": "30-50K",
-  "dealbreakers": ["加班严重", "外包"],
-  "strengths": ["分布式系统经验", "高并发处理", "团队管理经验"],
-  "career_highlights": ["从0到1搭建微服务架构", "日均处理1000万请求"]
+  "dealbreakers": ["996", "外包"],
+  "strengths": ["Distributed systems", "High concurrency"],
+  "career_highlights": ["Built microservice architecture from scratch"]
 }
 ```
 
-Show the extracted profile to the user and ask for confirmation/adjustments before proceeding.
+Show the extracted profile and ask for confirmation before proceeding.
 
-### Phase 2: Job Fetching (OpenCLI)
+For field options and valid values, see `references/config-reference.md`.
 
-Based on the profile, construct OpenCLI search commands. Run **multiple searches** to cover different angles:
+### Phase 2: Job Fetching
+
+#### Boss直聘 (OpenCLI)
+
+Run multiple searches to cover different angles:
 
 ```bash
-# Primary search — target role keywords
+# Primary — exact role
 opencli boss search "Go后端工程师" --city 杭州 --experience 3-5年 --salary 30-50K --limit 30 -f json
 
-# Secondary search — broader keywords
+# Secondary — broader terms
 opencli boss search "后端开发" --city 杭州 --experience 3-5年 --salary 30-50K --limit 30 -f json
 
-# Tertiary search — different city
+# Tertiary — different city
 opencli boss search "Go后端工程师" --city 上海 --experience 3-5年 --salary 30-50K --limit 30 -f json
 ```
 
-**Search parameter mapping:**
+Parameter mapping:
 
-| Profile Field | OpenCLI Arg | Values |
+| Profile Field | OpenCLI Flag | Example Values |
 |---|---|---|
 | experience_level | `--experience` | 应届/1年以内/1-3年/3-5年/5-10年/10年以上 |
 | education | `--degree` | 大专/本科/硕士/博士 |
@@ -73,93 +99,107 @@ opencli boss search "Go后端工程师" --city 上海 --experience 3-5年 --sala
 
 Deduplicate results by `security_id`. Expect 30-90 unique jobs across searches.
 
+#### Google Jobs (SerpApi)
+
+```bash
+curl "https://serpapi.com/search.json?engine=google_jobs&q=Backend+Engineer&location=San+Francisco%2C+California%2C+United+States&api_key=$SERPAPI_API_KEY"
+```
+
+Key parameters:
+
+| Parameter | Description | Example |
+|---|---|---|
+| `q` | Search query (role + skills) | `Backend Engineer Go Kubernetes` |
+| `location` | Full location string | `San Francisco, California, United States` |
+| `chips` | Filter chips | `date_posted:week` for recent jobs |
+
+SerpApi requires full location format. See `references/config-reference.md` for the location mapping table.
+
+Run 2-3 searches with different query variations to maximize coverage.
+
 ### Phase 3: Quick Filter (Rule-Based)
 
-Apply hard filters to eliminate obviously mismatched jobs. Remove jobs where:
+Apply hard filters to eliminate mismatches:
 
-1. **Salary mismatch**: Job salary range doesn't overlap with expectation (parse "15-25K" format)
-2. **Experience mismatch**: Job requires significantly more/less experience than the user has
-3. **Dealbreaker match**: Company name or job title matches user's dealbreakers (e.g., 外包公司)
+1. **Salary mismatch**: Job salary doesn't overlap with expectation
+2. **Experience mismatch**: Job requires significantly different experience level
+3. **Dealbreaker match**: Company name or title matches dealbreakers
 4. **Duplicate company**: Keep only the best-matching role per company
 
 Report filter stats:
+
 ```
-📊 快速筛选结果：
-- 获取职位总数: 72
-- 薪资不匹配: -18
-- 经验不匹配: -8
-- 过滤条件命中: -5
-- 进入精评: 41 个职位
+📊 Quick filter results:
+- Total jobs fetched: 72
+- Salary mismatch: -18
+- Experience mismatch: -8
+- Dealbreaker match: -5
+- Entering deep evaluation: 41 jobs
 ```
 
 ### Phase 4: Deep Evaluation (LLM)
 
-For remaining candidates (typically 20-40), fetch full JD via `opencli boss detail`:
+For remaining candidates (typically 20-40), fetch full job descriptions:
 
+**Boss直聘:**
 ```bash
 opencli boss detail <security_id> -f json
 ```
 
-**IMPORTANT**: Fetch details in batches of 5 to avoid rate limiting. Add 2-3 second delays between batches:
-```bash
-# Batch 1
-opencli boss detail <id1> -f json
-# wait 2s
-opencli boss detail <id2> -f json
-# ... etc.
-```
+Fetch in batches of 5 with 2-3 second delays between batches to avoid rate limiting.
 
-For each job, evaluate against the resume profile on these dimensions:
+**Google Jobs:** Full descriptions are already included in SerpApi results.
 
-| Dimension | Weight | Scoring Criteria |
+Score each job on these dimensions:
+
+| Dimension | Weight | Criteria |
 |---|---|---|
-| 技能匹配 | 30% | How many required skills does the user have? Are they core or nice-to-have? |
-| 经验匹配 | 20% | Does the user's experience level and domain match? |
-| 薪资匹配 | 15% | Is the salary within or above the user's expectation? |
-| 职位级别 | 15% | Does the role level match the user's career stage? |
-| 公司/行业 | 10% | Does the company's industry, scale, and stage match preferences? |
-| JD质量 | 10% | Is the JD detailed? Is the boss active? Are there red flags? |
+| Skills Match | 30% | How many required skills does the user have? Core vs nice-to-have? |
+| Experience Match | 20% | Does experience level and domain match? |
+| Salary Match | 15% | Is salary within or above expectation? |
+| Role Level | 15% | Does role level match career stage? |
+| Company/Industry | 10% | Does company industry, scale, stage match preferences? |
+| JD Quality | 10% | Is JD detailed? Is the recruiter active? Red flags? |
 
-Assign a score 0-100 for each job. Also generate:
-- **Match reasons**: 2-3 bullet points on why this is a good match
-- **Concerns**: Any potential mismatches or red flags
-- **Boss活跃度**: From active_time field (在线/刚刚活跃/3日内活跃/本周活跃/2周内活跃 etc.)
+For each job, generate:
+- **Score**: 0-100
+- **Match reasons**: 2-3 bullet points
+- **Concerns**: Potential mismatches or red flags
+- **Recruiter activity** (Boss直聘 only): From active_time field
 
 ### Phase 5: Present Results
 
-Sort by score descending. Present the top 10 (or all if fewer):
+Sort by score descending. Present the top 10:
 
 ```
-## 🎯 为你推荐的 Top 10 职位
+## 🎯 Top 10 Job Recommendations
 
-| # | 匹配度 | 职位 | 公司 | 薪资 | Boss活跃 | 核心匹配点 |
-|---|--------|------|------|------|----------|------------|
-| 1 | 95分 | 高级Go工程师 | 字节跳动 | 40-60K | 刚刚活跃 | 技能完全匹配，分布式经验吻合 |
-| 2 | 88分 | 后端技术负责人 | XX科技 | 35-50K | 今日活跃 | 技术栈匹配，需要管理经验✅ |
-| 3 | 82分 | Go开发工程师 | YY公司 | 30-45K | 本周活跃 | 核心技能匹配，公司规模偏小 |
-| ... | | | | | | |
+| # | Score | Position | Company | Salary | Key Match |
+|---|-------|----------|---------|--------|-----------|
+| 1 | 95 | Senior Go Engineer | ByteDance | 40-60K | Full skill match, distributed systems |
+| 2 | 88 | Backend Tech Lead | XX Tech | 35-50K | Tech stack match, management exp ✅ |
+| 3 | 82 | Go Developer | YY Corp | 30-45K | Core skills match, smaller company |
 
-📊 筛选统计: 获取 72 → 快速过滤 41 → 精评 Top 10
-⚠️ 已过滤 31 个不匹配职位（薪资不符 18 / 经验不符 8 / 其他 5）
+📊 Pipeline: 72 fetched → 41 after filter → Top 10 ranked
 ```
 
-For each recommended job, also provide:
+For each recommended job, provide a detail card:
+
 ```
-### #1 高级Go工程师 — 字节跳动 (95分)
+### #1 Senior Go Engineer — ByteDance (95/100)
 
-**薪资**: 40-60K·15薪 | **经验**: 3-5年 | **学历**: 本科
-**地点**: 杭州·余杭区·未来科技城
-**技能标签**: Go, Kubernetes, MySQL, Redis, 微服务
-**公司**: 互联网 | D轮及以上 | 10000人以上
-**Boss**: 张XX · 技术总监 · 刚刚活跃
+Salary: 40-60K·15months | Experience: 3-5 years | Education: Bachelor+
+Location: Hangzhou · Yuhang · Future Sci-Tech City
+Skills: Go, Kubernetes, MySQL, Redis, Microservices
+Company: Internet | Series D+ | 10000+
 
-✅ 匹配点:
-- Go + 分布式系统经验完全吻合
-- 高并发处理经验是加分项
-- 薪资范围覆盖期望
+✅ Match:
+- Go + distributed systems experience is a direct fit
+- High concurrency experience is a bonus
+- Salary range covers expectation
 
-⚠️ 注意:
-- JD提到"能接受适度加班"
+⚠️ Watch out:
+- JD mentions "moderate overtime expected"
 
 🔗 https://www.zhipin.com/job_detail/xxx.html
 ```
@@ -168,50 +208,51 @@ For each recommended job, also provide:
 
 After presenting results, offer these actions:
 
-```
-你可以:
-1. 输入序号查看更多详情 (如 "详细看看第3个")
-2. 调整筛选条件重新搜索 (如 "薪资放宽到20-50K")
-3. 打开职位链接去Boss直聘沟通 (如 "打开1,3,5")
-4. 导出推荐列表
-```
+1. **View details**: "Tell me more about #3"
+2. **Adjust filters**: "Widen salary to 20-50K and re-search"
+3. **Open links**: "Open #1, #3, #5 in browser"
+4. **Export**: "Export recommendations to a file"
 
-**Note on "打招呼"**: OpenCLI 的 `boss greet` 和 `boss send` 是**招聘端**命令（Boss身份），不是求职者端。求职者需要在 Boss直聘 App 或网页上手动点击"立即沟通"。所以我们只提供链接，不自动打招呼。
-
-If the user asks to "打开" links, run:
+**Opening links:**
 ```bash
 open "https://www.zhipin.com/job_detail/xxx.html"
+# or for Google Jobs links
+open "https://..."
 ```
 
-If the user asks to export:
-```bash
-# Generate a markdown file with all recommendations
-```
-Write the results to a file like `~/job-matches-YYYY-MM-DD.md`.
+**Exporting:** Write results to `~/job-matches-YYYY-MM-DD.md`.
 
-## LANGUAGE RULE
+**IMPORTANT — No auto-greet**: OpenCLI's `boss greet` and `boss send` are **recruiter-side** commands (Boss identity), not job-seeker commands. Never auto-apply or auto-greet. Always direct users to open links and apply manually.
 
-- Detect the language of the user's FIRST message.
-- If Chinese → respond in Chinese.
-- If English → respond in English.
-- Maintain the same language throughout.
+## Language Rule
 
-## ERROR HANDLING
+- Detect the language of the user's first message
+- Chinese input → respond in Chinese
+- English input → respond in English
+- Maintain the same language throughout the session
+
+## Error Handling
 
 | Error | Action |
 |---|---|
-| `opencli doctor` fails | Guide user through OpenCLI setup |
-| `opencli boss search` returns empty | Try broader search terms, different city, or remove salary/experience filters |
-| `opencli boss detail` fails for a job | Skip that job, note "职位可能已下架" |
-| Rate limiting (empty responses) | Add longer delays between requests, reduce batch size |
+| `opencli doctor` fails | Guide user through OpenCLI + Browser Bridge setup |
+| `opencli boss search` returns empty | Try broader terms, different city, or remove salary/experience filters |
+| `opencli boss detail` fails | Skip job, note "Position may have been taken down" |
+| SerpApi returns error | Check API key, quota, and location format |
+| Rate limiting (empty responses) | Add longer delays, reduce batch size |
 | Chrome not logged in | Tell user to open Chrome → zhipin.com → log in |
+| Boss直聘 IP restriction | Warn user that Boss直聘 may block requests from certain IPs/regions. Suggest switching to Google Jobs or using a Chinese IP |
 
-## KEY RULES
+## Common Mistakes
 
-- **Always extract profile first** — never search without understanding the resume.
-- **Multiple search angles** — one search term is never enough. Try role variants, different cities.
-- **Respect rate limits** — Boss直聘 will block rapid requests. Always add delays between detail fetches.
-- **Be honest about limitations** — if a job's JD is too vague to evaluate, say so.
-- **Never fabricate job data** — only present what OpenCLI actually returns.
-- **Score transparency** — show how each dimension contributed to the final score.
-- **No auto-greet** — the greet/send commands are recruiter-side only. Always direct users to open links manually.
+- Searching without extracting a profile first — always understand the resume before searching
+- Using only one search query — run 2-3 variations for broader coverage
+- Ignoring rate limits — Boss直聘 blocks rapid requests, always add delays
+- Fabricating job data — only present what the search tools actually return
+- Auto-greeting or auto-applying — the greet/send commands are recruiter-side only
+- Using short location names with SerpApi — always use full format (e.g., "San Francisco, California, United States")
+- Not deduplicating results across multiple searches
+
+## Bundled Reference
+
+Read `references/config-reference.md` for valid field values: cities, salary ranges, experience levels, education levels, dealbreakers, and SerpApi location mappings.
