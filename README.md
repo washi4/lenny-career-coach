@@ -46,8 +46,8 @@ Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copi
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/washi4/lenny-career-coach.git
-cd lenny-career-coach
+git clone https://github.com/washi4/lenny-ai-coach.git
+cd lenny-ai-coach
 
 # 2. Install Node dependencies
 npm install
