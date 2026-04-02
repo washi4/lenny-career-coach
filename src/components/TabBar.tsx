@@ -1,7 +1,7 @@
 'use client';
 
 import type { TabMode } from '@/types';
-import { FileText, MessageSquare, Mic, Briefcase } from 'lucide-react';
+import { FileText, MessageSquare, Mic, Briefcase, TrendingUp, Lightbulb } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 
 const TAB_ICONS: Record<TabMode, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -9,6 +9,8 @@ const TAB_ICONS: Record<TabMode, React.ComponentType<{ size?: number; className?
   career_advice: MessageSquare,
   mock_interview: Mic,
   job_match: Briefcase,
+  growth_coach: TrendingUp,
+  product_strategy: Lightbulb,
 };
 
 interface TabBarProps {
@@ -24,6 +26,8 @@ export default function TabBar({ activeTab, onTabChange }: TabBarProps) {
     { key: 'career_advice', labelKey: 'tabs.career_advice' },
     { key: 'mock_interview', labelKey: 'tabs.mock_interview' },
     { key: 'job_match', labelKey: 'tabs.job_match' },
+    { key: 'growth_coach', labelKey: 'tabs.growth_coach' },
+    { key: 'product_strategy', labelKey: 'tabs.product_strategy' },
   ];
 
   return (

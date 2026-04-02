@@ -53,3 +53,34 @@ __pycache__/
 
 # Plan documents (local reference only)
 docs/plans/
+
+# AI editor auto-generated skill dirs
+.adal/
+.augment/
+.claude/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills-lock.json
+SKILL_TEMPLATE.md

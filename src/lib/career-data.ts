@@ -196,3 +196,166 @@ export const JOB_MATCH_CONFIG = {
     'No remote', 'Low pay', 'Excessive overtime', 'Contract only', 'No visa sponsorship', 'Frequent travel',
   ],
 } as const;
+
+export const GROWTH_TOPICS = {
+  acquisition: {
+    key: 'acquisition',
+    name: 'User Acquisition',
+    emoji: '🎯',
+    description: 'Channels, CAC, organic vs paid, viral loops',
+  },
+  retention: {
+    key: 'retention',
+    name: 'Retention & Engagement',
+    emoji: '🔄',
+    description: 'D1/D7/D30 retention, engagement loops, habit formation',
+  },
+  activation: {
+    key: 'activation',
+    name: 'Activation & Onboarding',
+    emoji: '⚡',
+    description: 'First-time UX, aha moments, time-to-value',
+  },
+  monetization: {
+    key: 'monetization',
+    name: 'Monetization',
+    emoji: '💰',
+    description: 'Pricing, conversion, paywall, freemium vs premium',
+  },
+  pmf: {
+    key: 'pmf',
+    name: 'Product-Market Fit',
+    emoji: '🧭',
+    description: 'Finding PMF, measuring PMF, pivoting',
+  },
+  experimentation: {
+    key: 'experimentation',
+    name: 'Experimentation & A/B Testing',
+    emoji: '🧪',
+    description: 'A/B testing, experiment design, data-driven decisions',
+  },
+  viral_growth: {
+    key: 'viral_growth',
+    name: 'Viral & Network Effects',
+    emoji: '🌊',
+    description: 'Viral loops, referral programs, network effects, K-factor',
+  },
+  growth_org: {
+    key: 'growth_org',
+    name: 'Growth Team & Culture',
+    emoji: '👥',
+    description: 'Building growth teams, growth culture, growth models',
+  },
+} as const;
+
+export type GrowthTopicKey = keyof typeof GROWTH_TOPICS;
+
+export const GROWTH_CHALLENGES = [
+  'Low retention / high churn',
+  'Struggling to find PMF',
+  'Acquisition channels not scaling',
+  'Poor activation / onboarding',
+  'Low conversion rate',
+  'No clear growth model',
+  'Metrics are flat / stagnant',
+  'Scaling bottleneck',
+] as const;
+
+export const GROWTH_STAGE_OPTIONS = [
+  { key: 'pre_pmf', emoji: '🔍', nameEn: 'Finding PMF', nameZh: '寻找 PMF' },
+  { key: 'early_growth', emoji: '🌱', nameEn: 'Early Growth', nameZh: '早期增长' },
+  { key: 'scaling', emoji: '🚀', nameEn: 'Scaling', nameZh: '规模化增长' },
+  { key: 'mature', emoji: '🏢', nameEn: 'Mature / Optimizing', nameZh: '成熟期优化' },
+] as const;
+
+export const PRODUCT_TYPE_OPTIONS = [
+  { key: 'consumer_app', emoji: '📱', nameEn: 'Consumer App', nameZh: '消费者应用' },
+  { key: 'b2b_saas', emoji: '🏗️', nameEn: 'B2B SaaS', nameZh: 'B2B SaaS' },
+  { key: 'marketplace', emoji: '🏪', nameEn: 'Marketplace', nameZh: '平台/市场' },
+  { key: 'ecommerce', emoji: '🛒', nameEn: 'E-Commerce', nameZh: '电商' },
+  { key: 'other', emoji: '💼', nameEn: 'Other', nameZh: '其他' },
+] as const;
+
+export const STRATEGY_TOPICS = {
+  roadmap: {
+    key: 'roadmap',
+    name: 'Roadmap & Prioritization',
+    emoji: '🗺️',
+    description: 'Roadmapping frameworks, prioritization, saying no',
+  },
+  positioning: {
+    key: 'positioning',
+    name: 'Positioning & Differentiation',
+    emoji: '🎯',
+    description: 'Product positioning, competitive differentiation, messaging',
+  },
+  metrics: {
+    key: 'metrics',
+    name: 'Metrics & North Star',
+    emoji: '📊',
+    description: 'North star metrics, OKRs, success criteria, dashboards',
+  },
+  discovery: {
+    key: 'discovery',
+    name: 'User Research & Discovery',
+    emoji: '🔬',
+    description: 'User interviews, discovery habits, insights to action',
+  },
+  launch: {
+    key: 'launch',
+    name: 'Launch & GTM',
+    emoji: '🚀',
+    description: 'Product launches, go-to-market, rollout strategy',
+  },
+  platform: {
+    key: 'platform',
+    name: 'Platform & Ecosystem',
+    emoji: '🧩',
+    description: 'Platform strategy, APIs, developer ecosystems, integrations',
+  },
+  ai_product: {
+    key: 'ai_product',
+    name: 'AI Product Strategy',
+    emoji: '🤖',
+    description: 'Building AI products, evals, LLM integration, AI UX',
+  },
+  stakeholder: {
+    key: 'stakeholder',
+    name: 'Stakeholder Management',
+    emoji: '🤝',
+    description: 'Working with execs, eng, design; influence without authority',
+  },
+} as const;
+
+export type StrategyTopicKey = keyof typeof STRATEGY_TOPICS;
+
+export const STRATEGY_CHALLENGES = [
+  'Unclear product vision / strategy',
+  'Can\'t say no — roadmap is bloated',
+  'Struggling with prioritization',
+  'Weak positioning vs competitors',
+  'Metrics not driving decisions',
+  'User research not informing product',
+  'Launches falling flat',
+  'Stakeholder misalignment',
+  'Building AI features for the first time',
+  'Platform vs product tension',
+] as const;
+
+export const STRATEGY_AREA_OPTIONS = [
+  { key: 'roadmap', emoji: '🗺️', nameEn: 'Roadmap & Prioritization', nameZh: '路线图与优先级' },
+  { key: 'positioning', emoji: '🎯', nameEn: 'Positioning & Differentiation', nameZh: '定位与差异化' },
+  { key: 'metrics', emoji: '📊', nameEn: 'Metrics & North Star', nameZh: '指标与北极星' },
+  { key: 'discovery', emoji: '🔬', nameEn: 'User Research & Discovery', nameZh: '用户研究与发现' },
+  { key: 'launch', emoji: '🚀', nameEn: 'Launch & GTM', nameZh: '发布与市场推广' },
+  { key: 'platform', emoji: '🧩', nameEn: 'Platform & Ecosystem', nameZh: '平台与生态' },
+  { key: 'other', emoji: '💼', nameEn: 'Other', nameZh: '其他' },
+] as const;
+
+export const PRODUCT_MATURITY_OPTIONS = [
+  { key: 'idea', emoji: '💡', nameEn: 'Idea / Concept', nameZh: '概念阶段' },
+  { key: 'pre_pmf', emoji: '🔍', nameEn: 'Pre-PMF', nameZh: 'PMF 之前' },
+  { key: 'post_pmf', emoji: '🌱', nameEn: 'Post-PMF / Early Traction', nameZh: 'PMF 之后' },
+  { key: 'growth', emoji: '🚀', nameEn: 'Growth Phase', nameZh: '增长阶段' },
+  { key: 'mature', emoji: '🏢', nameEn: 'Mature / At Scale', nameZh: '成熟期' },
+] as const;

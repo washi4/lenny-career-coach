@@ -1,10 +1,10 @@
-# Lenny Career Coach
+# Lenny's AI Coach
 
-A RAG-powered career coaching app built on Lenny Rachitsky's podcast and newsletter content.
+A RAG-powered coaching app built on Lenny Rachitsky's podcast and newsletter content.
 
-[Lenny Rachitsky](https://www.lennysnewsletter.com/) is a former product lead at Airbnb and the author of the #1 business newsletter on Substack. His podcast and newsletter cover product management, growth, career development, and working with executives — featuring guests like Sheryl Sandberg, Brian Chesky, and Julie Zhuo. This app turns that knowledge base into an interactive career coach.
+[Lenny Rachitsky](https://www.lennysnewsletter.com/) is a former product lead at Airbnb and the author of the #1 business newsletter on Substack. His podcast and newsletter cover product management, growth, career development, and working with executives — featuring guests like Sheryl Sandberg, Brian Chesky, and Julie Zhuo. This app turns that knowledge base into an interactive AI coach.
 
-Three coaching modes — **Resume Review**, **Career Advice**, and **Mock Interview** — plus an experimental **Job Match** tab. All grounded in 314 podcast transcripts and 349 newsletter articles. Every response cites its sources with clickable references that open the original content (YouTube embeds for podcasts, rendered articles for newsletters).
+Six tabs — three chat-based coaching modes (**Resume Review**, **Career Advice**, **Mock Interview**), two diagnostic coaches (**Growth Coach**, **Product Strategy Coach**) with wizard → streaming report → follow-up chat flow, and an experimental **Job Match** tab. All grounded in 314 podcast transcripts and 349 newsletter articles. Every response cites its sources with clickable references that open the original content (YouTube embeds for podcasts, rendered articles for newsletters).
 
 Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copilot SDK for LLM inference.
 
@@ -12,7 +12,9 @@ Built with Next.js 16, React 19, ChromaDB for vector search, and the GitHub Copi
 
 ## Features
 
-- **Three coaching modes** — Resume review, career advice, and mock interview, each with a specialized system prompt
+- **Three chat-based coaching modes** — Resume review, career advice, and mock interview, each with a specialized system prompt
+- **Growth Coach** — Fill a product growth profile (product type, growth stage, challenges, metrics) → receive a streaming diagnostic report grounded in Lenny's content → continue with follow-up chat
+- **Product Strategy Coach** — Fill a strategy profile (strategy area, product maturity, challenges, context) → receive a streaming strategy diagnostic → continue with follow-up chat
 - **RAG with inline citations** — Responses include `[REF-XX]` links to original podcast episodes and newsletter articles
 - **Reference panel** — Click a citation to see the source: YouTube embeds for podcasts, rendered markdown for newsletters
 - **PDF resume upload** — Upload your resume in any coaching mode for personalized feedback
@@ -99,6 +101,17 @@ User → Next.js API (/api/chat) → Copilot SDK → LLM
 
 The search has a **dual-path** strategy: it tries the FastAPI server first (~100ms warm), and falls back to spawning a Python subprocess (~14s) if the server is unavailable. Both paths query the same ChromaDB index.
 
+### Diagnostic Coaches Flow (Growth Coach / Product Strategy Coach)
+
+```
+User fills wizard form → Client builds diagnostic prompt from profile fields
+  → POST /api/chat with skill-specific system prompt
+  → LLM calls search_knowledge_base for relevant Lenny content
+  → SSE stream: streaming diagnostic report with [REF-XX] citations
+  → Report complete → user can continue with follow-up chat
+  → Follow-up messages carry diagnostic context forward
+```
+
 ### Job Match + Lenny Advice Flow
 
 ```
@@ -145,7 +158,7 @@ Edit `knowledge-coach-config.json`:
 lenny-career-coach/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                # Main page — 4 tabs, split-panel layout
+│   │   ├── page.tsx                # Main page — 6 tabs, split-panel layout
 │   │   ├── globals.css             # Theme tokens (Tailwind v4)
 │   │   └── api/
 │   │       ├── chat/route.ts       # LLM chat + search tool + SSE streaming
@@ -162,8 +175,12 @@ lenny-career-coach/
 │   │   ├── Header.tsx              # App header + language switcher
 │   │   ├── InputArea.tsx           # Text input + PDF upload (all tabs)
 │   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content
-│   │   ├── TabBar.tsx              # 4-tab navigation
+│   │   ├── TabBar.tsx              # 6-tab navigation
 │   │   ├── TopicChips.tsx          # Empty-state topic suggestions
+│   │   ├── GrowthCoachTab.tsx      # Growth coach tab (wizard → report → chat)
+│   │   ├── GrowthWizard.tsx        # Growth diagnostic wizard form
+│   │   ├── ProductStrategyTab.tsx  # Product strategy tab (wizard → report → chat)
+│   │   ├── StrategyWizard.tsx      # Product strategy diagnostic wizard form
 │   │   ├── JobMatchTab.tsx         # Job match tab wrapper (wizard/progress/results states)
 │   │   ├── JobMatchWizard.tsx      # Source selection + PDF upload + profile form
 │   │   ├── JobSearchProgress.tsx   # Search progress with stage indicators

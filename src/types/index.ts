@@ -1,4 +1,4 @@
-export type TabMode = 'resume_review' | 'career_advice' | 'mock_interview' | 'job_match';
+export type TabMode = 'resume_review' | 'career_advice' | 'mock_interview' | 'job_match' | 'growth_coach' | 'product_strategy';
 
 export interface Message {
   id: string;
@@ -92,6 +92,43 @@ export interface LennyAdviceRequest {
 export type LennyAdviceState = 'idle' | 'loading' | 'loaded' | 'error';
 
 export type JobMatchView = 'wizard' | 'progress' | 'results';
+
+export type GrowthCoachView = 'wizard' | 'report' | 'chat';
+
+export type ProductType = 'consumer_app' | 'b2b_saas' | 'marketplace' | 'ecommerce' | 'other';
+export type GrowthStage = 'pre_pmf' | 'early_growth' | 'scaling' | 'mature';
+
+export interface GrowthProfile {
+  product_type: ProductType;
+  product_description: string;
+  growth_stage: GrowthStage;
+  challenges: string[];
+  metrics?: {
+    dau?: string;
+    mau?: string;
+    d30_retention?: string;
+    conversion_rate?: string;
+    revenue?: string;
+  };
+}
+
+export type ProductStrategyView = 'wizard' | 'report' | 'chat';
+
+export type StrategyArea = 'roadmap' | 'positioning' | 'metrics' | 'discovery' | 'launch' | 'platform' | 'other';
+export type ProductMaturity = 'idea' | 'pre_pmf' | 'post_pmf' | 'growth' | 'mature';
+
+export interface ProductStrategyProfile {
+  strategy_area: StrategyArea;
+  product_description: string;
+  product_maturity: ProductMaturity;
+  challenges: string[];
+  context?: {
+    team_size?: string;
+    user_base?: string;
+    revenue_model?: string;
+    competitive_landscape?: string;
+  };
+}
 
 export const INITIAL_SEARCH_STATE: JobSearchState = {
   stage: 'idle',
