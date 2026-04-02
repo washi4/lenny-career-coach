@@ -85,6 +85,14 @@ export default function TopicChips({ activeTab, onChipClick, onFileUpload, hasMe
     return null; // JobMatchWizard handles the empty state
   }
 
+  if (activeTab === 'growth_coach') {
+    return null;
+  }
+
+  if (activeTab === 'product_strategy') {
+    return null;
+  }
+
   if (activeTab === 'mock_interview') {
     const types = Object.values(INTERVIEW_TYPES);
     return (

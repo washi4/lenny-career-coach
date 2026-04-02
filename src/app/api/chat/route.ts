@@ -36,6 +36,8 @@ function getSkillDirectory(mode: string): string {
     resume_review: 'resume-reviewer',
     career_advice: 'career-advisor',
     mock_interview: 'mock-interviewer',
+    growth_coach: 'growth-coach',
+    product_strategy: 'product-strategy',
   };
 
   const skillName = skillMap[mode] ?? 'career-advisor';

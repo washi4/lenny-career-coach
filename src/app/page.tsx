@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { TabMode, Message, Reference, JobResult, JobProfile, JobSearchState, JobSource, JobMatchView } from '@/types';
+import type { TabMode, Message, Reference, JobResult, JobProfile, JobSearchState, JobSource, JobMatchView, GrowthCoachView, GrowthProfile, ProductStrategyView, ProductStrategyProfile } from '@/types';
 import { INITIAL_SEARCH_STATE } from '@/types';
 import Header from '@/components/Header';
 import TabBar from '@/components/TabBar';
@@ -11,6 +11,8 @@ import InputArea from '@/components/InputArea';
 import ReferencePanel from '@/components/ReferencePanel';
 import JobMatchTab from '@/components/JobMatchTab';
 import JobDetailPanel from '@/components/JobDetailPanel';
+import GrowthCoachTab from '@/components/GrowthCoachTab';
+import ProductStrategyTab from '@/components/ProductStrategyTab';
 import { sendChatMessage, uploadPdf } from '@/lib/chat-client';
 import { useLocale } from '@/lib/i18n';
 
@@ -25,6 +27,8 @@ export default function Home() {
     career_advice: [],
     mock_interview: [],
     job_match: [],
+    growth_coach: [],
+    product_strategy: [],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRef, setSelectedRef] = useState<Reference | null>(null);
@@ -40,6 +44,16 @@ export default function Home() {
   const [jobSearchState, setJobSearchState] = useState<JobSearchState>(INITIAL_SEARCH_STATE);
   const [jobFileName, setJobFileName] = useState('');
   const [jobSource, setJobSource] = useState<JobSource>('boss');
+  const [growthCoachView, setGrowthCoachView] = useState<GrowthCoachView>('wizard');
+  const [growthDiagnosticContent, setGrowthDiagnosticContent] = useState('');
+  const [growthProfile, setGrowthProfile] = useState<Partial<GrowthProfile>>({
+    challenges: [],
+  });
+  const [strategyView, setStrategyView] = useState<ProductStrategyView>('wizard');
+  const [strategyDiagnosticContent, setStrategyDiagnosticContent] = useState('');
+  const [strategyProfile, setStrategyProfile] = useState<Partial<ProductStrategyProfile>>({
+    challenges: [],
+  });
   const lastSearchRef = useRef<{ resumeText: string; profile: JobProfile } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { t } = useLocale();
@@ -309,6 +323,34 @@ export default function Home() {
               lastSearchRef={lastSearchRef}
             />
           </div>
+        ) : activeTab === 'growth_coach' ? (
+          <GrowthCoachTab
+            view={growthCoachView}
+            onViewChange={setGrowthCoachView}
+            profile={growthProfile}
+            onProfileChange={setGrowthProfile}
+            diagnosticContent={growthDiagnosticContent}
+            onDiagnosticContentChange={setGrowthDiagnosticContent}
+            messages={messages}
+            isLoading={isLoading}
+            onSend={handleSend}
+            onRefClick={handleRefClick}
+            onFileUpload={handleFileUpload}
+          />
+        ) : activeTab === 'product_strategy' ? (
+          <ProductStrategyTab
+            view={strategyView}
+            onViewChange={setStrategyView}
+            profile={strategyProfile}
+            onProfileChange={setStrategyProfile}
+            diagnosticContent={strategyDiagnosticContent}
+            onDiagnosticContentChange={setStrategyDiagnosticContent}
+            messages={messages}
+            isLoading={isLoading}
+            onSend={handleSend}
+            onRefClick={handleRefClick}
+            onFileUpload={handleFileUpload}
+          />
         ) : (
           <>
             <div className="flex-1 flex flex-col overflow-hidden relative">

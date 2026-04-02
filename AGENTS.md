@@ -4,11 +4,11 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# AGENTS.md — Lenny Career Coach
+# AGENTS.md — Lenny's AI Coach
 
 ## Project Overview
 
-A RAG-powered career coaching web app built on **Lenny Rachitsky's** content (314 podcasts + 349 newsletters). Three coaching modes — resume review, career advice, mock interview — plus an experimental Job Match tab. All grounded in Lenny's knowledge base, not generic AI advice.
+A RAG-powered coaching web app built on **Lenny Rachitsky's** content (314 podcasts + 349 newsletters). Six tabs — three chat-based coaching modes (resume review, career advice, mock interview), two diagnostic coaches (growth coach, product strategy coach) with wizard → report → follow-up chat flow, and an experimental Job Match tab. All grounded in Lenny's knowledge base, not generic AI advice.
 
 **Stack**: Next.js 16 + React 19 + Tailwind v4 + `@github/copilot-sdk` + ChromaDB + Python
 
@@ -45,13 +45,19 @@ The LLM is a **conduit** for Lenny's data. All analysis, dimensions, frameworks,
 
 ```
 User message → POST /api/chat
-  → Load SKILL.md for active tab (resume-reviewer | career-advisor | mock-interviewer)
+  → Load SKILL.md for active tab (resume-reviewer | career-advisor | mock-interviewer | growth-coach | product-strategy)
   → CopilotClient.createSession() with skill as systemMessage
   → Model calls search_knowledge_base tool → FastAPI server (port 8001) or subprocess fallback → ChromaDB query
   → Model generates response with [REF-XX] inline citations
   → SSE stream back to client
   → Client renders markdown + clickable REF links
   → Click REF → ReferencePanel opens (YouTube embed for podcasts, markdown for newsletters)
+
+Diagnostic Coaches (Growth Coach / Product Strategy Coach) → POST /api/chat
+  → User fills wizard form (product type, challenges, context)
+  → Client builds diagnostic prompt from profile fields
+  → Same /api/chat SSE pipeline → streaming diagnostic report
+  → User can continue with follow-up chat (report context preserved)
 
 Job Match tab → POST /api/jobs/search
   → Load job-matcher SKILL.md as systemMessage
@@ -89,6 +95,8 @@ lenny-career-coach/
 │   ├── resume-reviewer/SKILL.md    # Resume review coaching skill
 │   ├── career-advisor/SKILL.md     # Career advice coaching skill
 │   ├── mock-interviewer/SKILL.md   # Mock interview coaching skill
+│   ├── growth-coach/SKILL.md       # Growth diagnostic coaching skill
+│   ├── product-strategy/SKILL.md   # Product strategy diagnostic coaching skill
 │   ├── job-matcher/SKILL.md        # Job match scoring skill (OpenCLI + Boss直聘)
 │   └── index-builder/SKILL.md      # ChromaDB index management skill
 ├── data/
@@ -102,7 +110,7 @@ lenny-career-coach/
 │   └── config.py                   # Shared config loader
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                # Main page — 4 tabs, split-panel layout
+│   │   ├── page.tsx                # Main page — 6 tabs, split-panel layout
 │   │   ├── globals.css             # Dark professional theme, Tailwind v4 tokens
 │   │   ├── layout.tsx
 │   │   └── api/
@@ -118,8 +126,12 @@ lenny-career-coach/
 │   │   ├── ReferencePanel.tsx      # Right panel: YouTube embed / newsletter content / inline images
 │   │   ├── InputArea.tsx           # Text input + PDF upload (all tabs)
 │   │   ├── TopicChips.tsx          # Empty-state topic suggestions
-│   │   ├── TabBar.tsx              # 4-tab navigation
+│   │   ├── TabBar.tsx              # 6-tab navigation
 │   │   ├── Header.tsx              # App header + language switcher
+│   │   ├── GrowthCoachTab.tsx      # Growth coach tab (wizard → report → chat)
+│   │   ├── GrowthWizard.tsx        # Growth diagnostic wizard form
+│   │   ├── ProductStrategyTab.tsx  # Product strategy tab (wizard → report → chat)
+│   │   ├── StrategyWizard.tsx      # Product strategy diagnostic wizard form
 │   │   ├── JobMatchTab.tsx         # Job match tab wrapper (wizard/progress/results states)
 │   │   ├── JobMatchWizard.tsx      # Prerequisite check + PDF upload + profile form
 │   │   ├── JobSearchProgress.tsx   # Search progress with stage indicators
@@ -131,7 +143,7 @@ lenny-career-coach/
 │   │   ├── career-data.ts          # Tab config, topic definitions
 │   │   ├── chat-client.ts          # SSE client — DO NOT MODIFY
 │   │   └── jobs-client.ts          # SSE client for job search pipeline
-│   └── types/index.ts              # TabMode, Message, Reference, ChatState, JobProfile, JobResult
+│   └── types/index.ts              # TabMode, Message, Reference, ChatState, JobProfile, JobResult, GrowthProfile, ProductStrategyProfile
 └── knowledge-coach-config.json     # App + vector DB config
 ```
 
@@ -149,7 +161,7 @@ Model outputs `<!-- suggestions: ["Option 1", "Option 2"] -->` at end of respons
 
 ### PDF Upload
 
-All 3 tabs support PDF upload. `InputArea.tsx` → `POST /api/parse-pdf` → extracted text sent in chat history. UI shows filename only, not content.
+All 3 chat-based tabs support PDF upload. `InputArea.tsx` → `POST /api/parse-pdf` → extracted text sent in chat history. UI shows filename only, not content.
 
 ### Markdown Rendering in Chat
 
